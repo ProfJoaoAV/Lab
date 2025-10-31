@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Corretor de Expressão Escrita</title>
+    <!-- Carregar Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Usar a fonte Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Bibliotecas para gerar PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Esconder os controlos de vídeo nativos */
+        video::-webkit-media-controls {
+            display: none !important;
+        }
+        video {
+            width: 100%;
+            border-radius: 0.5rem;
+            border: 2px solid #D1D5DB;
+        }
+        /* Esconder o input de ficheiro nativo */
+        #file-upload {
+            display: none;
+        }
+        /* Estilo para as correções no texto */
+        #corrected-text u {
+            text-decoration: underline;
+            text-decoration-color: #f97316; /* Laranja (orange-600) */
+            text-decoration-thickness: 3px;
+            background-color: #fff7ed; /* Laranja muito claro (orange-50) */
+            border-radius: 3px;
+            padding: 0 2px;
+        }
+        /* Estilo para as pré-visualizações das páginas */
+        .page-preview {
+            position: relative;
+            border: 2px solid #e5e7eb;
+            border-radius: 0.375rem;
+            overflow: hidden;
+            width: 100px;
+            height: 120px;
+            flex-shrink: 0;
+        }
+        .page-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .page-preview .remove-page {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            background-color: #ef4444; /* red-500 */
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            font-size: 14px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border: 1px solid white;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+
+    <div class="bg-white p-6 sm:p-8 rounded-xl shadow-2xl w-full max-w-4xl mx-auto">
+        
+        <!-- Cabeçalho -->
+        <header class="text-center mb-6">
+            <h1 class="text-3xl font-bold text-blue-800">Corretor de Expressão Escrita ✍️</h1>
+            <p class="text-lg text-gray-600 mt-2">Versão: Professor 2º Ciclo (PT-PT)</p>
+            <p class="text-sm text-gray-500 mt-2">Indique o tema e adicione uma ou mais páginas do texto.</p>
+        </header>
+
+        <!-- Área de Instruções -->
+        <div class="mb-6">
+            <label for="student-instructions" class="block text-lg font-semibold text-gray-800 mb-2">Contexto / Instruções dadas ao Aluno (Opcional)</label>
+            <textarea id="student-instructions" rows="3" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 transition duration-200" placeholder="Ex: 'Escreve um texto sobre as tuas férias de verão com pelo menos 10 linhas.'"></textarea>
+        </div>
+
+        <!-- Área de Páginas Adicionadas -->
+        <div id="pages-container" class="mb-4">
+            <h3 class="text-lg font-semibold text-gray-800 mb-2">Páginas do Texto (pela ordem correta)</h3>
+            <div id="pages-preview-list" class="flex flex-wrap gap-3 p-3 bg-gray-50 border border-gray-200 rounded-lg min-h-[140px] items-center">
+                <!-- As pré-visualizações das páginas aparecerão aqui -->
+                <p id="no-pages-text" class="text-gray-500">Nenhuma página adicionada. Use a câmara ou carregue um ficheiro.</p>
+            </div>
+        </div>
+
+        <!-- Área de Input (Câmara ou Ficheiro) -->
+        <div id="input-section" class="border-2 border-dashed border-gray-300 p-4 rounded-lg">
+            <div id="video-container" class="relative hidden">
+                <!-- O feed da câmara aparecerá aqui -->
+                <video id="video" autoplay playsinline muted></video>
+                <!-- Canvas escondido para capturar a imagem -->
+                <canvas id="canvas" class="hidden"></canvas>
+            </div>
+            
+            <!-- Botões de Escolha -->
+            <div id="choice-buttons" class="flex flex-col sm:flex-row gap-4 mt-2 justify-center">
+                <button id="start-camera-btn" class="w-full sm:w-auto bg-blue-600 text-white py-3 px-6 rounded-lg font-semibold shadow-md hover:bg-blue-700 transition duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50">
+                    + Adicionar com Câmara
+                </button>
+                <!-- ALTERAÇÃO: Trocado <button> por <label> para garantir compatibilidade com file:/// -->
+                <label for="file-upload" class="w-full sm:w-auto bg-gray-600 text-white py-3 px-6 rounded-lg font-semibold shadow-md hover:bg-gray-700 transition duration-300 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-50 cursor-pointer">
+                    + Adicionar Ficheiro
+                </label>
+                <input type="file" id="file-upload" accept="image/png, image/jpeg, image/webp">
+            </div>
+
+            <!-- Botões de Controlo da Câmara -->
+            <div id="camera-controls" class="hidden flex-col sm:flex-row gap-4 mt-4 justify-center">
+                <button id="snap-photo-btn" class="w-full sm:w-auto bg-green-600 text-white py-3 px-6 rounded-lg font-semibold shadow-md hover:bg-green-700 transition duration-300 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50">
+                    Adicionar esta Página
+                </button>
+                <button id="cancel-camera-btn" class="w-full sm:w-auto bg-red-600 text-white py-3 px-6 rounded-lg font-semibold shadow-md hover:bg-red-700 transition duration-300 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50">
+                    Cancelar
+                </button>
+            </div>
+        </div>
+
+        <!-- Botão de Análise Final -->
+        <div id="analyze-section" class="mt-6 text-center">
+            <button id="analyze-now-btn" class="w-full sm:w-1/2 bg-green-700 text-white py-4 px-8 rounded-lg font-bold text-lg shadow-xl hover:bg-green-800 transition duration-300 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50 disabled:bg-gray-400 disabled:cursor-not-allowed" disabled>
+                Analisar Agora
+            </button>
+        </div>
+
+
+        <!-- Área de Carregamento e Mensagens -->
+        <div id="loading" class="hidden text-center my-6">
+            <div class="flex items-center justify-center gap-2 text-xl font-semibold text-blue-700">
+                <svg class="animate-spin h-6 w-6 text-blue-700" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                A analisar... O professor está a ler o teu texto. 👨‍🏫
+            </div>
+            <p class="text-gray-500 mt-2">Isto pode demorar alguns segundos, especialmente com várias páginas...</p>
+        </div>
+
+        <div id="error-message" class="hidden text-center my-4 p-4 bg-red-100 text-red-700 font-semibold rounded-lg">
+            <!-- Mensagens de erro aparecerão aqui -->
+        </div>
+
+        <!-- Área de Resultados -->
+        <div id="results" class="hidden mt-8">
+            <h2 class="text-2xl font-bold text-gray-800 text-center mb-6">Avaliação do Professor</h2>
+
+            <!-- Texto Transcrito -->
+            <div id="transcription-container" class="mb-6">
+                <h3 class="text-xl font-semibold text-gray-700 mb-2">Texto que eu li:</h3>
+                <p id="transcription" class="p-4 bg-gray-50 border border-gray-200 rounded-lg italic text-gray-800 whitespace-pre-wrap">...</p>
+            </div>
+
+            <!-- Texto com Correções -->
+            <div id="corrections-container" class="mb-6">
+                <h3 class="text-xl font-semibold text-gray-700 mb-2">Texto com as minhas sugestões:</h3>
+                <p id="corrected-text" class="p-4 bg-orange-50 border border-orange-200 rounded-lg text-gray-800 whitespace-pre-wrap leading-relaxed">...</p>
+            </div>
+
+            <!-- Grelha de Pontuações -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                
+                <!-- Cartão de Pontuação (Modelo) -->
+                <div class="score-card bg-blue-50 p-4 rounded-lg border border-blue-200 shadow-sm">
+                    <h4 class="text-lg font-semibold text-blue-900">1. Ortografia e Acentuação</h4>
+                    <p id="score-ortografia" class="text-2xl font-bold text-blue-700 my-2">--/5</p>
+                    <p id="comment-ortografia" class="text-sm text-gray-700">...</p>
+                </div>
+                
+                <div class="score-card bg-yellow-50 p-4 rounded-lg border border-yellow-200 shadow-sm">
+                    <h4 class="text-lg font-semibold text-yellow-900">2. Pontuação</h4>
+                    <p id="score-pontuacao" class="text-2xl font-bold text-yellow-700 my-2">--/5</p>
+                    <p id="comment-pontuacao" class="text-sm text-gray-700">...</p>
+                </div>
+                
+                <div class="score-card bg-green-50 p-4 rounded-lg border border-green-200 shadow-sm">
+                    <h4 class="text-lg font-semibold text-green-900">3. Gramática (Concordância/Reg.)</h4>
+                    <p id="score-gramatica" class="text-2xl font-bold text-green-700 my-2">--/5</p>
+                    <p id="comment-gramatica" class="text-sm text-gray-700">...</p>
+                </div>
+                
+                <div class="score-card bg-purple-50 p-4 rounded-lg border border-purple-200 shadow-sm">
+                    <h4 class="text-lg font-semibold text-purple-900">4. Coesão e Coerência</h4>
+                    <p id="score-coesao" class="text-2xl font-bold text-purple-700 my-2">--/5</p>
+                    <p id="comment-coesao" class="text-sm text-gray-700">...</p>
+                </div>
+                
+                <div class="score-card bg-indigo-50 p-4 rounded-lg border border-indigo-200 shadow-sm md:col-span-2 lg:col-span-1">
+                    <h4 class="text-lg font-semibold text-indigo-900">5. Clareza e Vocabulário</h4>
+                    <p id="score-clareza" class="text-2xl font-bold text-indigo-700 my-2">--/5</p>
+                    <p id="comment-clareza" class="text-sm text-gray-700">...</p>
+                </div>
+                
+            </div>
+            
+            <!-- Botões de Ação Pós-Análise -->
+            <div class="mt-8 text-center flex flex-col sm:flex-row justify-center gap-4">
+                <button id="save-pdf-btn" class="w-full sm:w-auto bg-green-600 text-white py-3 px-6 rounded-lg font-semibold shadow-md hover:bg-green-700 transition duration-300 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50">
+                    Guardar Análise (PDF)
+                </button>
+                 <button id="reset-btn" class="w-full sm:w-auto bg-blue-600 text-white py-3 px-6 rounded-lg font-semibold shadow-md hover:bg-blue-700 transition duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50">
+                    Analisar Novo Texto
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- NOVO: Modal para o nome do ficheiro PDF -->
+    <div id="filename-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-sm">
+            <h3 class="text-xl font-semibold mb-4">Guardar Análise</h3>
+            <label for="pdf-filename-input" class="block text-sm font-medium text-gray-700 mb-2">Nome do ficheiro:</label>
+            <input type="text" id="pdf-filename-input" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" value="analise_do_aluno">
+            <div class="flex justify-end gap-3 mt-5">
+                <button id="pdf-cancel-save" class="bg-gray-500 text-white py-2 px-4 rounded-lg font-semibold hover:bg-gray-600 transition">
+                    Cancelar
+                </button>
+                <button id="pdf-confirm-save" class="bg-green-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-green-700 transition">
+                    Confirmar e Guardar
+                </button>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        // --- State ---
+        let currentStream = null;
+        let pages = []; // Array para guardar os dados Base64 das páginas
+
+        // --- DOM Elements ---
+        const video = document.getElementById('video');
+        const videoContainer = document.getElementById('video-container');
+        const canvas = document.getElementById('canvas');
+        const startCameraBtn = document.getElementById('start-camera-btn');
+        const snapPhotoBtn = document.getElementById('snap-photo-btn');
+        const cancelCameraBtn = document.getElementById('cancel-camera-btn');
+        // REMOVIDO: O <button> já não existe, agora é uma <label>
+        // const uploadFileBtn = document.getElementById('upload-file-btn');
+        const fileUploadInput = document.getElementById('file-upload');
+        const choiceButtonsDiv = document.getElementById('choice-buttons');
+        const cameraControlsDiv = document.getElementById('camera-controls');
+        
+        const pagesPreviewList = document.getElementById('pages-preview-list');
+        const noPagesText = document.getElementById('no-pages-text');
+        const analyzeNowBtn = document.getElementById('analyze-now-btn');
+        const instructionsTextarea = document.getElementById('student-instructions');
+
+        const loadingDiv = document.getElementById('loading');
+        const resultsDiv = document.getElementById('results');
+        const errorDiv = document.getElementById('error-message');
+        const transcriptionP = document.getElementById('transcription');
+        const resetBtn = document.getElementById('reset-btn');
+        const savePdfBtn = document.getElementById('save-pdf-btn');
+        const inputSection = document.getElementById('input-section');
+        const pagesContainer = document.getElementById('pages-container');
+        const analyzeSection = document.getElementById('analyze-section');
+
+        // NOVO: Elementos do Modal PDF
+        const filenameModal = document.getElementById('filename-modal');
+        const pdfConfirmSaveBtn = document.getElementById('pdf-confirm-save');
+        const pdfCancelSaveBtn = document.getElementById('pdf-cancel-save');
+        const pdfFilenameInput = document.getElementById('pdf-filename-input');
+
+
+        // --- Camera & UI Logic ---
+        startCameraBtn.addEventListener('click', async () => {
+            showError(null); // Limpar erros
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'environment' }
+                });
+                video.srcObject = stream;
+                currentStream = stream;
+                video.play();
+                
+                videoContainer.classList.remove('hidden');
+                cameraControlsDiv.classList.remove('hidden');
+                choiceButtonsDiv.classList.add('hidden');
+
+            } catch (err) {
+                console.error("Erro ao aceder à câmara: ", err);
+                let userMessage = "Não consegui aceder à câmara. ";
+                if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+                    userMessage += "Parece que não deste permissão. Por favor, autoriza o acesso à câmara.";
+                } else if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
+                    userMessage += "Não encontrei uma câmara neste dispositivo.";
+                } else if (err.name === "NotReadableError" || err.name === "TrackStartError") {
+                    userMessage += "A câmara já está a ser usada por outra aplicação?";
+                } else {
+                    userMessage += "Ocorreu um erro inesperado. Tenta novamente.";
+                }
+                showError(userMessage);
+            }
+        });
+
+        cancelCameraBtn.addEventListener('click', () => {
+            stopCamera();
+            resetUItoChoice();
+        });
+
+        function resetUItoChoice() {
+            videoContainer.classList.add('hidden');
+            cameraControlsDiv.classList.add('hidden');
+            choiceButtonsDiv.classList.remove('hidden');
+        }
+
+        snapPhotoBtn.addEventListener('click', () => {
+            if (!currentStream) {
+                showError("A câmara não está ativa.");
+                return;
+            }
+            
+            const context = canvas.getContext('2d');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            const imageDataUrl = canvas.toDataURL('image/jpeg', 0.9);
+            const base64ImageData = imageDataUrl.split(',')[1];
+
+            addPage(base64ImageData, imageDataUrl);
+            
+            stopCamera();
+            resetUItoChoice();
+        });
+
+        function stopCamera() {
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+                video.srcObject = null;
+                currentStream = null;
+            }
+        }
+
+        // --- File Upload Logic ---
+        // REMOVIDO: A <label> já não precisa deste 'click' programado.
+        // uploadFileBtn.addEventListener('click', () => {
+        //     fileUploadInput.click();
+        // });
+
+        fileUploadInput.addEventListener('change', async (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            if (!file.type.startsWith('image/')) {
+                showError("Por favor, seleciona um ficheiro de imagem (jpeg, png, webp).");
+                return;
+            }
+
+            try {
+                const { base64Data, dataUrl } = await getBase64FromFile(file);
+                addPage(base64Data, dataUrl);
+            } catch (error) {
+                console.error("Erro ao processar o ficheiro: ", error);
+                showError(`Erro ao ler o ficheiro: ${error.message}.`);
+            } finally {
+                fileUploadInput.value = null; // Permite carregar o mesmo ficheiro novamente
+            }
+        });
+
+        function getBase64FromFile(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => {
+                    const dataUrl = reader.result;
+                    const base64Data = dataUrl.split(',')[1];
+                    resolve({ base64Data, dataUrl });
+                };
+                reader.onerror = (error) => reject(error);
+            });
+        }
+        
+        // --- Page Management Logic ---
+        
+        function addPage(base64Data, dataUrl) {
+            const pageId = `page-${Date.now()}`;
+            pages.push({ id: pageId, base64: base64Data });
+            
+            const pageDiv = document.createElement('div');
+            pageDiv.id = pageId;
+            pageDiv.className = 'page-preview';
+            pageDiv.innerHTML = `
+                <img src="${dataUrl}" alt="Pré-visualização da página">
+                <div class="remove-page" title="Remover esta página">&times;</div>
+            `;
+            
+            pageDiv.querySelector('.remove-page').addEventListener('click', () => {
+                removePage(pageId);
+            });
+            
+            pagesPreviewList.appendChild(pageDiv);
+            updateUIBasedOnPages();
+        }
+        
+        function removePage(pageId) {
+            pages = pages.filter(p => p.id !== pageId);
+            document.getElementById(pageId)?.remove();
+            updateUIBasedOnPages();
+        }
+        
+        function updateUIBasedOnPages() {
+            if (pages.length > 0) {
+                noPagesText.classList.add('hidden');
+                analyzeNowBtn.disabled = false;
+            } else {
+                noPagesText.classList.remove('hidden');
+                analyzeNowBtn.disabled = true;
+            }
+        }
+        
+        // --- Analysis Logic ---
+        
+        analyzeNowBtn.addEventListener('click', async () => {
+            if (pages.length === 0) {
+                showError("Por favor, adicione pelo menos uma página do texto para analisar.");
+                return;
+            }
+
+            // 1. Mostrar loading e esconder tudo o resto
+            loadingDiv.classList.remove('hidden');
+            resultsDiv.classList.add('hidden');
+            showError(null);
+            inputSection.classList.add('hidden');
+            pagesContainer.classList.add('hidden');
+            analyzeSection.classList.add('hidden');
+            instructionsTextarea.disabled = true;
+
+            const studentInstructions = instructionsTextarea.value.trim();
+
+            // 5. Enviar para a API
+            try {
+                await callGeminiAPI(pages, studentInstructions);
+            } catch (error) {
+                console.error("Erro na chamada à API Gemini: ", error);
+                showError(`Erro ao analisar: ${error.message}. Tenta uma foto mais nítida e com boa luz.`);
+                // Reset UI em caso de falha
+                loadingDiv.classList.add('hidden');
+                inputSection.classList.remove('hidden');
+                pagesContainer.classList.remove('hidden');
+                analyzeSection.classList.remove('hidden');
+                instructionsTextarea.disabled = false;
+            }
+        });
+
+
+        // --- API Logic ---
+        
+        const systemPrompt = `
+            És um professor de Português do segundo ciclo (5º e 6º ano) em Portugal. A tua tarefa é analisar uma ou mais imagens de um texto escrito à mão por um aluno.
+            As imagens são fornecidas pela ordem correta e devem ser tratadas como um único documento.
+            A tua personalidade é simpática, pedagógica e muito encorajadora. A tua linguagem deve ser simples, clara e apropriada para crianças de 10-12 anos.
+            
+            O utilizador vai fornecer um "Contexto" (as instruções dadas ao aluno). Leva este contexto em conta na tua avaliação, especialmente na Coerência (se o tema foi seguido) e Vocabulário. Se não for dado contexto, avalia o texto de forma geral.
+            
+            Deves seguir estes passos:
+            1. Transcreve o texto que vês nas imagens, juntando-os como um único texto. Se não conseguires ler nada, a transcrição deve ser: "(Não consegui ler o texto da imagem. Tenta uma foto com mais luz e melhor foco!)".
+            2. Avalia o texto que transcreveste em cinco categorias específicas.
+            3. Atribui uma pontuação de 1 (Muito a melhorar) a 5 (Excelente) para cada categoria.
+            4. Fornece um breve comentário pedagógico (1-2 frases) para cada categoria, justificando a pontuação de forma construtiva. Usa sempre Português de Portugal (PT-PT).
+            
+            As categorias são:
+            1. Ortografia e Acentuação: Verifica erros de escrita, trocas de letras e uso de acentos.
+            2. Pontuação: Verifica o uso de vírgulas, pontos finais, pontos de interrogação, etc.
+            3. Gramática: Verifica concordâncias (género, número) e regências verbais simples.
+            4. Coesão e Coerência: Verifica se as ideias estão bem ligadas (com "e", "mas", "depois") e se o texto faz sentido.
+            5. Clareza e Vocabulário: Verifica se o texto é fácil de perceber e se o vocabulário é adequado, evitando repetições.
+            6. Por fim, reescreve o texto com sugestões de correção. Usa este formato EXATO: "O [erro] (sugestão) foi...". Por exemplo: "O [meninu] (menino) foi [a] (à) praia.". Se não houver erros, apenas repete a transcrição original.
+            
+            Responde APENAS com o JSON.
+        `;
+
+        const jsonSchema = {
+            type: "OBJECT",
+            properties: {
+                "transcricao": { "type": "STRING" },
+                "ortografia_score": { "type": "NUMBER" },
+                "ortografia_comentario": { "type": "STRING" },
+                "pontuacao_score": { "type": "NUMBER" },
+                "pontuacao_comentario": { "type": "STRING" },
+                "gramatica_score": { "type": "NUMBER" },
+                "gramatica_comentario": { "type": "STRING" },
+                "coesao_score": { "type": "NUMBER" },
+                "coesao_comentario": { "type": "STRING" },
+                "clareza_score": { "type": "NUMBER" },
+                "clareza_comentario": { "type": "STRING" },
+                "texto_com_sugestoes": { "type": "STRING" }
+            }
+        };
+
+        async function fetchWithRetry(url, options, retries = 4, delay = 1000) {
+            for (let i = 0; i < retries; i++) {
+                try {
+                    const response = await fetch(url, options);
+                    if (response.ok) {
+                        return response;
+                    }
+                    if (response.status >= 400 && response.status < 500) {
+                        throw new Error(`Erro de cliente: ${response.status} ${response.statusText}`);
+                    }
+                    console.warn(`Tentativa ${i + 1} falhou com status ${response.status}. A tentar novamente em ${delay}ms...`);
+                } catch (error) {
+                    console.warn(`Tentativa ${i + 1} falhou com erro de rede: ${error.message}. A tentar novamente em ${delay}ms...`);
+                }
+                await new Promise(resolve => setTimeout(resolve, delay));
+                delay *= 2; // Exponential backoff
+            }
+            throw new Error(`Falha ao contactar a API após ${retries} tentativas.`);
+        }
+
+        async function callGeminiAPI(pagesData, studentInstructions) {
+            const apiKey = "AIzaSyCDyHm-EDRAoObvfjRoBM0AlBF5UgToU3I"; // A API key será injetada pelo ambiente
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+
+            let userPromptText = "Analisa este texto, por favor. O texto está dividido por várias imagens, pela ordem correta.";
+            if (studentInstructions) {
+                userPromptText = `Contexto: As instruções dadas ao aluno foram: "${studentInstructions}".\n\nCom base nesse contexto, analisa este texto, por favor. O texto está dividido por várias imagens, pela ordem correta.`;
+            }
+            
+            // Construir a lista de "parts"
+            const parts = [
+                { text: userPromptText }
+            ];
+            
+            // Adicionar todas as imagens à lista
+            pagesData.forEach(page => {
+                parts.push({
+                    inlineData: {
+                        mimeType: "image/jpeg",
+                        data: page.base64
+                    }
+                });
+            });
+
+            const payload = {
+                contents: [
+                    {
+                        role: "user",
+                        parts: parts // Enviar o prompt e todas as imagens
+                    }
+                ],
+                systemInstruction: {
+                    parts: [{ text: systemPrompt }]
+                },
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: jsonSchema,
+                    temperature: 0.3
+                }
+            };
+
+            const response = await fetchWithRetry(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                const errorBody = await response.text();
+                throw new Error(`A API falhou com status ${response.status}: ${errorBody}`);
+            }
+
+            const result = await response.json();
+            
+            if (!result.candidates || !result.candidates[0].content || !result.candidates[0].content.parts[0].text) {
+                console.error("Resposta inválida da API:", result);
+                throw new Error("A API devolveu uma resposta inesperada. Tenta novamente.");
+            }
+
+            const jsonText = result.candidates[0].content.parts[0].text;
+            const data = JSON.parse(jsonText);
+
+            displayResults(data);
+            
+            loadingDiv.classList.add('hidden');
+        }
+
+        // --- UI Update Logic ---
+
+        function displayResults(data) {
+            // Transcrição
+            transcriptionP.textContent = data.transcricao;
+
+            // Texto com Correções
+            const correctedTextP = document.getElementById('corrected-text');
+            let suggestionsText = data.texto_com_sugestoes || "";
+
+            const regex = /\[([\s\S]*?)\]\s*\(([\s\S]*?)\)/g;
+            
+            let safeText = suggestionsText.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            
+            correctedTextP.innerHTML = safeText.replace(regex, `<u>$1</u> ($2)`);
+
+            // 1. Ortografia
+            document.getElementById('score-ortografia').textContent = `${data.ortografia_score}/5`;
+            document.getElementById('comment-ortografia').textContent = data.ortografia_comentario;
+
+            // 2. Pontuação
+            document.getElementById('score-pontuacao').textContent = `${data.pontuacao_score}/5`;
+            document.getElementById('comment-pontuacao').textContent = data.pontuacao_comentario;
+            
+            // 3. Gramática
+            document.getElementById('score-gramatica').textContent = `${data.gramatica_score}/5`;
+            document.getElementById('comment-gramatica').textContent = data.gramatica_comentario;
+            
+            // 4. Coesão
+            document.getElementById('score-coesao').textContent = `${data.coesao_score}/5`;
+            document.getElementById('comment-coesao').textContent = data.coesao_comentario;
+            
+            // 5. Clareza
+            document.getElementById('score-clareza').textContent = `${data.clareza_score}/5`;
+            document.getElementById('comment-clareza').textContent = data.clareza_comentario;
+
+            // Mostrar o bloco de resultados
+            resultsDiv.classList.remove('hidden');
+        }
+
+        function showError(message) {
+            if (message) {
+                errorDiv.textContent = message;
+                errorDiv.classList.remove('hidden');
+            } else {
+                errorDiv.textContent = "";
+                errorDiv.classList.add('hidden');
+            }
+        }
+        
+        // --- Reset Logic ---
+        resetBtn.addEventListener('click', () => {
+            // Limpar estado
+            pages = [];
+            stopCamera();
+            
+            // Resetar UI
+            resultsDiv.classList.add('hidden');
+            showError(null);
+            loadingDiv.classList.add('hidden');
+            
+            inputSection.classList.remove('hidden');
+            pagesContainer.classList.remove('hidden');
+            analyzeSection.classList.remove('hidden');
+            
+            pagesPreviewList.innerHTML = ''; // Limpar pré-visualizações
+            noPagesText.classList.remove('hidden');
+            analyzeNowBtn.disabled = true;
+            
+            instructionsTextarea.disabled = false;
+            instructionsTextarea.value = '';
+            
+            resetUItoChoice();
+        });
+        
+        // --- Save PDF Logic (ALTERADO) ---
+        
+        // 1. O botão "Guardar Análise (PDF)" agora APENAS abre o modal
+        savePdfBtn.addEventListener('click', () => {
+            // Sugerir um nome de ficheiro default com a data
+            const dateStr = new Date().toISOString().split('T')[0];
+            pdfFilenameInput.value = `analise_texto_${dateStr}`;
+            // Mostrar o modal
+            filenameModal.classList.remove('hidden');
+        });
+
+        // 2. O botão "Cancelar" no modal apenas o fecha
+        pdfCancelSaveBtn.addEventListener('click', () => {
+            filenameModal.classList.add('hidden');
+        });
+
+        // 3. O botão "Confirmar" no modal é que faz o trabalho de guardar
+        pdfConfirmSaveBtn.addEventListener('click', async () => {
+            const { jsPDF } = window.jspdf;
+            const resultsDiv = document.getElementById('results');
+            const confirmBtnOriginalText = pdfConfirmSaveBtn.innerHTML;
+            const saveBtnOriginalText = savePdfBtn.innerHTML;
+
+            // Obter o nome do ficheiro do input
+            let filenameBase = pdfFilenameInput.value.trim();
+            if (!filenameBase) {
+                filenameBase = "analise_texto"; // Fallback
+            }
+            
+            const filename = `${filenameBase.replace(/\s+/g, '_')}.pdf`;
+
+            // Fechar o modal
+            filenameModal.classList.add('hidden');
+            
+            // Desativar botões e mostrar feedback de "a guardar"
+            pdfConfirmSaveBtn.disabled = true;
+            pdfConfirmSaveBtn.innerHTML = 'A guardar...';
+            savePdfBtn.disabled = true;
+            savePdfBtn.innerHTML = 'A guardar PDF...';
+
+            try {
+                // Usar html2canvas para "fotografar" a div de resultados
+                const canvas = await html2canvas(resultsDiv, { 
+                    scale: 2 // Melhorar a resolução da captura
+                }); 
+                
+                const imgData = canvas.toDataURL('image/png');
+                
+                // Inicializar o PDF (orientação 'p'ortrait, 'mm', 'a4')
+                const pdf = new jsPDF('p', 'mm', 'a4'); 
+                const pdfWidth = pdf.internal.pageSize.getWidth(); // Largura da pág A4 em mm
+                
+                // Obter propriedades da imagem capturada
+                const imgProps = pdf.getImageProperties(imgData);
+                const imgRatio = imgProps.height / imgProps.width;
+                
+                // Calcular a altura da imagem no PDF mantendo o ratio
+                // Subtraímos 20 da largura para ter 10mm de margem de cada lado
+                const pdfHeight = imgRatio * (pdfWidth - 20); 
+                
+                // Adicionar a imagem ao PDF (com margens de 10mm)
+                pdf.addImage(imgData, 'PNG', 10, 10, pdfWidth - 20, pdfHeight);
+                
+                // Salvar o ficheiro com o nome escolhido
+                pdf.save(filename);
+
+            } catch (err) {
+                console.error("Erro ao gerar PDF: ", err);
+                showError("Ocorreu um erro ao tentar guardar o PDF.");
+            } finally {
+                // Restaurar os botões
+                pdfConfirmSaveBtn.disabled = false;
+                pdfConfirmSaveBtn.innerHTML = confirmBtnOriginalText;
+                savePdfBtn.disabled = false;
+                savePdfBtn.innerHTML = saveBtnOriginalText;
+            }
+        });
+
+    </script>
+</body>
+</html>
+
+
