@@ -3,168 +3,374 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ficha de Leitura Sequencial (com IA)</title>
+    <title>Aventura das Fábulas 📚</title>
     <style>
-        /* Estilos gerais */
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            line-height: 1.6;
-            background-color: #f4f7f6;
-            color: #333;
+        /* --- Reset Básico e Estilo do Body --- */
+        * {
             margin: 0;
             padding: 0;
-            scroll-behavior: smooth; /* Para rolar suavemente */
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+            line-height: 1.6;
         }
         .container {
-            max-width: 800px;
+            max-width: 850px;
             margin: 20px auto;
-            padding: 20px;
-            background-color: #ffffff;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-        }
-        section {
-            margin-bottom: 30px;
-            padding-bottom: 20px;
-            border-bottom: 2px solid #e0e0e0;
-        }
-        section:last-child {
-            border-bottom: none;
         }
 
-        /* Estilos de texto e títulos */
-        h1, h2 {
-            color: #0056b3;
-            border-bottom: 2px solid #f0f0f0;
-            padding-bottom: 5px;
-        }
-        h1 {
+        /* --- Cabeçalho e Barra de Progresso --- */
+        .header {
             text-align: center;
+            color: #2c3e50;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.7);
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
         }
-        .conto-texto {
-            background-color: #fafafa;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            padding: 15px;
-            font-style: italic;
+        .header h1 {
+            font-size: 2.5em;
+            font-weight: 700;
+            color: #34495e;
         }
-        
-        /* Formulários e Perguntas */
-        .pergunta {
-            margin-bottom: 20px;
-            padding: 15px;
-            background-color: #f9f9f9;
-            border-radius: 5px;
-            border: 1px solid #eee;
+        .progress-bar {
+            background: #e0e0e0;
+            border-radius: 50px;
+            height: 10px;
+            margin: 15px 0 5px 0;
+            overflow: hidden;
         }
-        label {
+        .progress-fill {
+            background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+            height: 100%;
+            width: 0%; /* Controlado por JS */
+            transition: width 0.5s ease-out;
+            border-radius: 50px;
+        }
+
+        /* --- Estrutura das Secções --- */
+        section {
+            background: #ffffff;
+            border-radius: 16px;
+            padding: 30px 40px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(44, 62, 80, 0.1);
+            border: 1px solid #e8e8e8;
+            /* Começam escondidas */
+            display: none;
+        }
+        section.active {
             display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
+        }
+        h2 {
+            font-size: 1.8em;
+            color: #2980b9;
+            margin-bottom: 25px;
+            border-bottom: 2px solid #f0f0f0;
+            padding-bottom: 10px;
+            display: flex;
+            align-items: center;
+        }
+        h2 .icon {
+            margin-right: 12px;
+            font-size: 1.2em;
+        }
+
+        /* --- Estilo dos Contos --- */
+        .conto-texto {
+            background-color: #fdfdfd;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            padding: 25px;
+            font-size: 1.1em;
+            line-height: 1.7;
+        }
+        .conto-texto p {
+            margin-bottom: 15px;
+        }
+        .conto-texto strong {
+            display: block;
+            text-align: center;
+            margin-top: 20px;
+            padding: 10px;
+            background: #f0f9ff;
+            border-radius: 5px;
+            color: #0056b3;
+            font-size: 1.05em;
+        }
+
+        /* --- Estilo das Perguntas e Formulários --- */
+        .pergunta {
+            margin-bottom: 25px;
+            padding: 20px;
+            background-color: #fafafa;
+            border-radius: 8px;
+            border: 1px solid #f0f0f0;
+        }
+        label, .pergunta p strong {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: 600;
+            color: #34495e;
+            font-size: 1.1em;
         }
         input[type="text"],
         textarea {
             width: 100%;
-            padding: 8px;
+            padding: 12px 15px;
             box-sizing: border-box;
-            border: 1px solid #ccc;
-            border-radius: 4px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 1em;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+        input[type="text"]:focus,
+        textarea:focus {
+            outline: none;
+            border-color: #2980b9;
+            box-shadow: 0 0 8px rgba(41, 128, 185, 0.2);
         }
         textarea {
-            min-height: 80px;
+            min-height: 100px;
             resize: vertical;
         }
 
-        /* Botões */
-        button {
-            background-color: #007bff;
-            color: white;
-            padding: 10px 15px;
-            border: none;
-            border-radius: 5px;
+        /* --- Checkboxes Personalizadas --- */
+        .checkbox-container {
+            display: block;
+            position: relative;
+            padding-left: 35px;
+            margin-bottom: 12px;
             cursor: pointer;
-            font-size: 16px;
-            margin-top: 10px;
+            font-size: 1em;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+        .checkbox-container input {
+            position: absolute;
+            opacity: 0;
+            cursor: pointer;
+            height: 0;
+            width: 0;
+        }
+        .checkmark {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 22px;
+            width: 22px;
+            background-color: #eee;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            transition: background-color 0.2s;
+        }
+        .checkbox-container:hover input ~ .checkmark {
+            background-color: #ccc;
+        }
+        .checkbox-container input:checked ~ .checkmark {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            border-color: #4facfe;
+        }
+        .checkmark:after {
+            content: "";
+            position: absolute;
+            display: none;
+        }
+        .checkbox-container input:checked ~ .checkmark:after {
+            display: block;
+        }
+        .checkbox-container .checkmark:after {
+            left: 7px;
+            top: 3px;
+            width: 5px;
+            height: 10px;
+            border: solid white;
+            border-width: 0 3px 3px 0;
+            transform: rotate(45deg);
+        }
+        .checkbox-label-text {
+            font-weight: normal;
+            color: #333;
+        }
+
+
+        /* --- Botões --- */
+        button {
+            background: linear-gradient(135deg, #2980b9 0%, #2c3e50 100%);
+            color: white;
+            padding: 12px 25px;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 600;
+            transition: transform 0.2s, box-shadow 0.2s, background 0.3s;
+            box-shadow: 0 4px 15px rgba(44, 62, 80, 0.2);
         }
         button:hover {
-            background-color: #0056b3;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(44, 62, 80, 0.3);
         }
         button:disabled {
-            background-color: #ccc;
+            background: #bdc3c7;
             cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
         }
         .btn-continuar {
-            background-color: #28a745; /* Verde */
+            font-size: 1.1em;
+            padding: 15px 30px;
             width: 100%;
-            padding: 12px;
-            font-size: 18px;
+            margin-top: 15px;
+            background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+            box-shadow: 0 4px 15px rgba(39, 174, 96, 0.3);
         }
         .btn-continuar:hover {
-            background-color: #218838;
+            box-shadow: 0 6px 20px rgba(39, 174, 96, 0.4);
+        }
+        .btn-analisar {
+            background: linear-gradient(135deg, #e67e22 0%, #f39c12 100%);
+            box-shadow: 0 4px 15px rgba(230, 126, 34, 0.3);
+            margin-top: 10px;
+        }
+        .btn-analisar:hover {
+             box-shadow: 0 6px 20px rgba(230, 126, 34, 0.4);
         }
 
-        /* Feedback da IA */
+        /* --- Feedback da IA --- */
         .feedback-ia {
-            margin-top: 10px;
-            padding: 10px;
-            border-radius: 5px;
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 8px;
             font-style: italic;
+            border: 1px solid;
             display: none; /* Escondido por defeito */
         }
-        .feedback-ia-loading { background-color: #f0f0f0; border: 1px solid #ddd; color: #555; }
-        .feedback-ia-success { background-color: #e6f7ff; border: 1px solid #b3e0ff; color: #0056b3; }
-        .feedback-ia-error { background-color: #ffe6e6; border: 1px solid #ffb3b3; color: #d90000; }
+        .feedback-ia-loading {
+            background-color: #f0f9ff;
+            border-color: #b3e0ff;
+            color: #0056b3;
+        }
+        .feedback-ia-success {
+            background-color: #f6ffed;
+            border-color: #b7eb8f;
+            color: #389e0d;
+        }
+        .feedback-ia-error {
+            background-color: #fffbe6;
+            border-color: #ffe58f;
+            color: #d46b08;
+        }
 
-        /* Resultados */
-        #resultados {
-            background-color: #e6ffed;
-            border: 1px solid #b3ffc6;
-            padding: 20px;
+        /* --- Tabela --- */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
             border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 15px;
+            text-align: left;
+            vertical-align: top;
+        }
+        th {
+            background-color: #34495e;
+            color: white;
+            font-size: 1.1em;
+        }
+        td textarea {
+            min-height: 120px;
+            border: none;
+            box-shadow: none;
+        }
+        td textarea:focus {
+            border: none;
+            box-shadow: inset 0 0 5px rgba(41, 128, 185, 0.2);
+        }
+
+        /* --- Resultados Finais --- */
+        #resultados {
+            background: #fafff5;
+            border: 1px solid #b7eb8f;
+            padding: 30px;
+            border-radius: 12px;
             text-align: center;
             display: none; /* Escondido por defeito */
         }
-        
-        /* Tabela */
-        table { width: 100%; border-collapse: collapse; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; vertical-align: top; }
-        th { background-color: #f2f2f2; }
-        td textarea { min-height: 100px; }
-
-        /* Classe para esconder secções */
-        .seccao-escondida {
-            display: none;
+        #res-nome {
+            font-size: 1.5em;
+            font-weight: 600;
+            color: #34495e;
         }
+        #res-pontuacao {
+            font-size: 2.5em;
+            font-weight: 700;
+            color: #27ae60;
+            margin: 15px 0;
+        }
+        #res-feedback {
+            font-size: 1.1em;
+            color: #555;
+            margin-bottom: 25px;
+        }
+        #download-cert {
+             background: linear-gradient(135deg, #8e44ad 0%, #9b59b6 100%);
+             box-shadow: 0 4px 15px rgba(142, 68, 173, 0.3);
+        }
+        #download-cert:hover {
+            box-shadow: 0 6px 20px rgba(142, 68, 173, 0.4);
+        }
+
     </style>
 </head>
 <body>
 
     <div class="container">
-        <h1>Ficha de Leitura Sequencial (com IA)</h1>
+        
+        <div class="header">
+            <h1>📚 Aventura das Fábulas</h1>
+            <p>Uma viagem interativa pelo mundo da sabedoria</p>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressBar"></div>
+            </div>
+        </div>
 
         <!-- Secção 1: Dados do Aluno -->
-        <section id="info-aluno">
-            <h2>Os teus Dados</h2>
+        <section id="info-aluno" class="active">
+            <h2><span class="icon">👤</span>Apresenta-te!</h2>
             <form id="form-info">
                 <div class="pergunta">
                     <label for="nome">Nome Completo:</label>
-                    <input type="text" id="nome" required>
+                    <input type="text" id="nome" placeholder="Escreve o teu nome completo" required>
                 </div>
                 <div class="pergunta">
                     <label for="ano">Ano:</label>
-                    <input type="text" id="ano" required>
+                    <input type="text" id="ano" placeholder="Ex: 5º" required>
                 </div>
                 <div class="pergunta">
                     <label for="turma">Turma:</label>
-                    <input type="text" id="turma" required>
+                    <input type="text" id="turma" placeholder="Ex: A" required>
                 </div>
             </form>
-            <button type="button" class="btn-continuar" onclick="mostrarSeccao('conto-1', this)">Começar Ficha</button>
+            <button type="button" class="btn-continuar" onclick="mostrarSeccao('conto-1', 16)">Começar a Ficha 🚀</button>
         </section>
 
         <!-- Secção 2: Leitura do Conto 1 -->
-        <section id="conto-1" class="seccao-escondida">
-            <h2>1. Lê o conto "O cão, o galo e a raposa"</h2>
+        <section id="conto-1">
+            <h2><span class="icon">📖</span>1. Lê o conto "O cão, o galo e a raposa"</h2>
             <div class="conto-texto">
                 <p>Para celebrar a sua boa amizade, um cão e um galo decidiram fazer uma viagem juntos. Quando começou a anoitecer, e cansados de tanto caminhar, os dois amigos resolveram abrigar-se junto de uma árvore. O galo empoleirou-se num ramo alto e o cão aninhou-se aos pés da árvore, resguardando-se numa parte oca do tronco.</p>
                 <p>Mal os primeiros raios de sol despontaram no horizonte, o galo começou a anunciar bem alto o início de um novo dia, tal como era seu costume e dever.</p>
@@ -175,67 +381,81 @@
                 <p>Tendo ouvido toda a conversa, o cão, esperto, deixou que a raposa se aproximasse e, sem aviso, saltou-lhe em cima e cravou-lhe os dentes.</p>
                 <p><strong>Quem arma esparrela muitas vezes cai nela.</strong></p>
             </div>
-            <button type="button" class="btn-continuar" onclick="mostrarSeccao('exercicios-1', this)">Continuar para os Exercícios</button>
+            <button type="button" class="btn-continuar" onclick="mostrarSeccao('exercicios-1', 33)">Continuar para os Exercícios ✏️</button>
         </section>
 
         <!-- Secção 3: Exercícios do Conto 1 -->
-        <section id="exercicios-1" class="seccao-escondida">
-            <h2>2. Exercícios sobre "O cão, o galo e a raposa"</h2>
+        <section id="exercicios-1">
+            <h2><span class="icon">🦊</span>2. Exercícios sobre "O cão, o galo e a raposa"</h2>
             <form id="form-ex1">
                 <div class="pergunta">
                     <label for="ex1-2-1"><strong>2.1.</strong> Relaciona a atitude da raposa com o seu objetivo.</label>
                     <textarea id="ex1-2-1" rows="3" placeholder="Escreve a tua resposta..."></textarea>
-                    <button type="button" onclick="analisarComIA('ex1-2-1', 'Relaciona a atitude da raposa com o seu objetivo.')">Analisar com IA</button>
+                    <button type="button" class="btn-analisar" onclick="analisarComIA('ex1-2-1', 'Relaciona a atitude da raposa com o seu objetivo.', this)">Analisar com IA 💡</button>
                     <div id="feedback-ex1-2-1" class="feedback-ia"></div>
                 </div>
 
                 <div class="pergunta">
                     <p><strong>2.2.</strong> Assinala dois <strong>adjetivos</strong> que caracterizam <strong>psicologicamente</strong> a raposa. Justifica a tua resposta.</p>
-                    <div>
-                        <input type="checkbox" id="cb-a" value="presunçosa"> <label for="cb-a" style="display:inline;">a. presunçosa</label>
-                    </div>
-                    <div>
-                        <input type="checkbox" id="cb-b" value="estouvada"> <label for="cb-b" style="display:inline;">b. estouvada</label>
-                    </div>
-                    <div>
-                        <input type="checkbox" id="cb-c" value="matreira"> <label for="cb-c" style="display:inline;">c. matreira</label>
-                    </div>
-                    <div>
-                        <input type="checkbox" id="cb-d" value="humilde"> <label for="cb-d" style="display:inline;">d. humilde</label>
-                    </div>
-                    <div>
-                        <input type="checkbox" id="cb-e" value="benevolente"> <label for="cb-e" style="display:inline;">e. benevolente</label>
-                    </div>
-                    <div>
-                        <input type="checkbox" id="cb-f" value="fiável"> <label for="cb-f" style="display:inline;">f. fiável</label>
-                    </div>
+                    
+                    <label class="checkbox-container">
+                        <span class="checkbox-label-text">a. presunçosa</span>
+                        <input type="checkbox" id="cb-a" value="presunçosa">
+                        <span class="checkmark"></span>
+                    </label>
+                    <label class="checkbox-container">
+                        <span class="checkbox-label-text">b. estouvada</span>
+                        <input type="checkbox" id="cb-b" value="estouvada">
+                        <span class="checkmark"></span>
+                    </label>
+                    <label class="checkbox-container">
+                        <span class="checkbox-label-text">c. matreira</span>
+                        <input type="checkbox" id="cb-c" value="matreira">
+                        <span class="checkmark"></span>
+                    </label>
+                    <label class="checkbox-container">
+                        <span class="checkbox-label-text">d. humilde</span>
+                        <input type="checkbox" id="cb-d" value="humilde">
+                        <span class="checkmark"></span>
+                    </label>
+                    <label class="checkbox-container">
+                        <span class="checkbox-label-text">e. benevolente</span>
+                        <input type="checkbox" id="cb-e" value="benevolente">
+                        <span class="checkmark"></span>
+                    </label>
+                    <label class="checkbox-container">
+                        <span class="checkbox-label-text">f. fiável</span>
+                        <input type="checkbox" id="cb-f" value="fiável">
+                        <span class="checkmark"></span>
+                    </label>
+                    
                     <br>
                     <label for="ex1-2-2-just"><strong>Justificação:</strong></label>
                     <textarea id="ex1-2-2-just" rows="2" placeholder="Justifica a tua escolha..."></textarea>
-                    <button type="button" onclick="analisarComIA('ex1-2-2-just', 'Justifica os adjetivos que caracterizam psicologicamente a raposa.')">Analisar com IA</button>
+                    <button type="button" class="btn-analisar" onclick="analisarComIA('ex1-2-2-just', 'Justifica os adjetivos que caracterizam psicologicamente a raposa.', this)">Analisar com IA 💡</button>
                     <div id="feedback-ex1-2-2-just" class="feedback-ia"></div>
                 </div>
 
                 <div class="pergunta">
                     <label for="ex1-3"><strong>3.</strong> Resume a estratégia utilizada pelo galo para enganar a raposa.</label>
                     <textarea id="ex1-3" rows="3" placeholder="Escreve a tua resposta..."></textarea>
-                    <button type="button" onclick="analisarComIA('ex1-3', 'Resume a estratégia utilizada pelo galo para enganar a raposa.')">Analisar com IA</button>
+                    <button type="button" class="btn-analisar" onclick="analisarComIA('ex1-3', 'Resume a estratégia utilizada pelo galo para enganar a raposa.', this)">Analisar com IA 💡</button>
                     <div id="feedback-ex1-3" class="feedback-ia"></div>
                 </div>
 
                 <div class="pergunta">
                     <label for="ex1-4"><strong>4.</strong> Explica, por palavras tuas, a moralidade desta fábula.</label>
                     <textarea id="ex1-4" rows="3" placeholder="Escreve a tua resposta..."></textarea>
-                    <button type="button" onclick="analisarComIA('ex1-4', 'Explica, por palavras tuas, a moralidade da fábula O cão, o galo e a raposa.')">Analisar com IA</button>
+                    <button type="button" class="btn-analisar" onclick="analisarComIA('ex1-4', 'Explica, por palavras tuas, a moralidade da fábula O cão, o galo e a raposa.', this)">Analisar com IA 💡</button>
                     <div id="feedback-ex1-4" class="feedback-ia"></div>
                 </div>
             </form>
-            <button type="button" class="btn-continuar" onclick="mostrarSeccao('conto-2', this)">Continuar para o Conto 2</button>
+            <button type="button" class="btn-continuar" onclick="mostrarSeccao('conto-2', 50)">Próximo Conto ➡️</button>
         </section>
 
         <!-- Secção 4: Leitura do Conto 2 -->
-        <section id="conto-2" class="seccao-escondida">
-            <h2>3. Lê o conto "O caranguejo e a sua mãe"</h2>
+        <section id="conto-2">
+            <h2><span class="icon">📖</span>3. Lê o conto "O caranguejo e a sua mãe"</h2>
             <div class="conto-texto">
                 <p>Um caranguejo passeava com a mãe pela praia quando esta, descontente com o andar desajeitado do filho, lhe disse:</p>
                 <p>– Porque caminhas de lado, meu filho? É muito mais elegante caminhar de frente.</p>
@@ -244,12 +464,12 @@
                 <p>A mãe tentou caminhar virada para a frente e, como não conseguiu, deu razão ao filho sem protestar.</p>
                 <p><strong>Mais vale o exemplo do que a doutrina.</strong></p>
             </div>
-            <button type="button" class="btn-continuar" onclick="mostrarSeccao('exercicios-2', this)">Continuar para o Exercício Final</button>
+            <button type="button" class="btn-continuar" onclick="mostrarSeccao('exercicios-2', 66)">Continuar para o Exercício Final ✏️</button>
         </section>
 
         <!-- Secção 5: Exercícios do Conto 2 / Comparação -->
-        <section id="exercicios-2" class="seccao-escondida">
-            <h2>4. Exercício de Comparação</h2>
+        <section id="exercicios-2">
+            <h2><span class="icon">🦀</span>4. Exercício de Comparação</h2>
             <form id="form-ex2">
                 <div class="pergunta">
                     <p><strong>5.1.</strong> Completa a tabela, referindo as <strong>características humanas</strong> (ações, sentimentos, emoções) das <strong>personagens</strong> das duas fábulas.</p>
@@ -267,26 +487,27 @@
                             </tr>
                         </tbody>
                     </table>
-                    <button type="button" onclick="analisarComIA('ex2-a', 'Quais são as características humanas das personagens na fábula O cão, o galo e a raposa?')">Analisar Coluna 'a'</button>
-                    <button type="button" onclick="analisarComIA('ex2-b', 'Quais são as características humanas das personagens na fábula O caranguejo e a sua mãe?')">Analisar Coluna 'b'</button>
+                    <button type="button" class="btn-analisar" onclick="analisarComIA('ex2-a', 'Características humanas na fábula O cão, o galo e a raposa', this)">Analisar Coluna 'a'</button>
+                    <button type="button" class="btn-analisar" onclick="analisarComIA('ex2-b', 'Características humanas na fábula O caranguejo e a sua mãe', this)">Analisar Coluna 'b'</button>
                     <div id="feedback-ex2-a" class="feedback-ia"></div>
                     <div id="feedback-ex2-b" class="feedback-ia"></div>
                 </div>
             </form>
-            <button type="button" class="btn-continuar" onclick="mostrarSeccao('final', this)">Terminar Exercícios</button>
+            <button type="button" class="btn-continuar" onclick="mostrarSeccao('final', 83)">Terminar e Ver Resultados 🏆</button>
         </section>
 
         <!-- Secção 6: Finalização e Certificado -->
-        <section id="final" class="seccao-escondida">
-            <h2>5. Terminar e Obter Certificado</h2>
-            <p>Carrega no botão abaixo para submeter as tuas respostas e ver a tua pontuação.</p>
-            <button type="button" id="submit-all">Submeter e Ver Pontuação</button>
+        <section id="final">
+            <h2><span class="icon">🏁</span>5. Terminar e Obter Certificado</h2>
+            <p style="text-align: center; font-size: 1.1em;">Terminaste a tua ficha! Carrega no botão abaixo para veres a tua pontuação.</p>
+            <button type="button" id="submit-all" class="btn-continuar" style="background: linear-gradient(135deg, #09b5a3 0%, #1a82c4 100%);">Submeter e Ver Pontuação</button>
             
             <div id="resultados">
                 <h3>Resultados para <span id="res-nome"></span></h3>
-                <p>Conseguiste <strong id="res-pontuacao"></strong> pontos!</p>
+                <p>Conseguiste:</p>
+                <p id="res-pontuacao">0 / 20</p>
                 <p id="res-feedback"></p>
-                <button type="button" id="download-cert">Download do Certificado</button>
+                <button type="button" id="download-cert">Download do Certificado 📜</button>
             </div>
         </section>
 
@@ -294,190 +515,163 @@
 
     <!-- JavaScript para a interatividade -->
     <script>
-        // --- Lógica para mostrar secções ---
+        // --- Constantes da API ---
+        // A API Key é fornecida automaticamente neste ambiente.
+        const apiKey = "AIzaSyDQfEa3hBulQZw8pZ6dquH6oUCbqhoO3G0"; 
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
 
-        /**
-         * Mostra a secção seguinte e esconde o botão "Continuar"
-         * @param {string} seccaoId - O ID da secção a mostrar
-         * @param {HTMLElement} botao - O botão que foi clicado
-         */
-        function mostrarSeccao(seccaoId, botao) {
-            // Validação especial para o primeiro passo
-            if (seccaoId === 'conto-1') {
+        // --- Navegação e Barra de Progresso ---
+        function mostrarSeccao(id, progresso) {
+            // Validação do nome
+            if (id === 'conto-1') {
                 const nome = document.getElementById('nome').value;
                 if (nome.trim() === "") {
-                    alert("Por favor, preenche o teu nome antes de começar.");
+                    alert("Por favor, preenche o teu nome para começar.");
                     document.getElementById('nome').focus();
                     return;
                 }
             }
 
-            // Mostra a secção
-            const seccaoParaMostrar = document.getElementById(seccaoId);
-            seccaoParaMostrar.style.display = 'block';
+            // Esconde todas as secções
+            document.querySelectorAll('section').forEach(seccao => {
+                seccao.style.display = 'none';
+            });
 
-            // Esconde o botão "Continuar" que foi clicado
-            botao.style.display = 'none';
+            // Mostra a secção alvo
+            const proximaSeccao = document.getElementById(id);
+            proximaSeccao.style.display = 'block';
+            proximaSeccao.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
-            // Rola a página para a nova secção
-            seccaoParaMostrar.scrollIntoView({ behavior: 'smooth' });
+            // Atualiza a barra de progresso
+            document.getElementById('progressBar').style.width = progresso + '%';
         }
 
 
-        // --- Configuração da API de IA ---
-        const apiKey = "AIzaSyDQfEa3hBulQZw8pZ6dquH6oUCbqhoO3G0"; // Será fornecida pelo ambiente
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
-
-        /**
-         * Função para analisar a resposta do aluno usando a API Gemini.
-         * @param {string} elementId - O ID da textarea com a resposta.
-         * @param {string} perguntaTexto - O texto da pergunta para dar contexto à IA.
-         */
-        async function analisarComIA(elementId, perguntaTexto) {
-            const feedbackDiv = document.getElementById('feedback-' + elementId);
+        // --- Função de Análise com IA ---
+        async function analisarComIA(elementId, perguntaContexto, botao) {
             const textarea = document.getElementById(elementId);
-            const respostaAluno = textarea.value;
-            const button = feedbackDiv.previousElementSibling; // O botão "Analisar"
+            const feedbackDiv = document.getElementById('feedback-' + elementId);
+            // const botao = textarea.nextElementSibling; // <-- Linha antiga com erro
+            // 'botao' agora é passado como argumento
 
-            // 1. Validar a entrada
-            if (respostaAluno.trim().length < 5) {
+            if (textarea.value.trim().length < 10) {
                 feedbackDiv.innerText = "⚠️ Por favor, escreve uma resposta mais completa antes de pedir a análise.";
                 feedbackDiv.className = "feedback-ia feedback-ia-error";
                 feedbackDiv.style.display = "block";
                 return;
             }
 
-            // 2. Mostrar estado de "A carregar"
-            feedbackDiv.innerText = "A analisar a tua resposta com IA... Por favor, aguarda.";
+            // Mostrar feedback de carregamento
+            feedbackDiv.innerText = "Analisando a tua resposta... (A falar com a IA) 🤖";
             feedbackDiv.className = "feedback-ia feedback-ia-loading";
             feedbackDiv.style.display = "block";
-            button.disabled = true; // Desativa o botão durante a chamada
+            botao.disabled = true;
 
-            // 3. Definir o prompt do sistema (o papel da IA)
-            const systemPrompt = `És um assistente de professor de Português, simpático e encorajador.
-                Analisa a resposta do aluno à seguinte pergunta.
-                Fornece feedback construtivo e breve (máximo 2-3 frases).
-                Se a resposta estiver boa, elogia.
-                Se estiver incorreta ou incompleta, aponta gentilmente a direção certa.
-                Fala diretamente com o aluno (usa "tu").`;
-            
-            // 4. Definir o prompt do utilizador (a tarefa)
-            const userQuery = `Pergunta: "${perguntaTexto}"
-                Resposta do Aluno: "${respostaAluno}"
-                
-                Analisa esta resposta, por favor.`;
+            const systemPrompt = "És um assistente de professor, amigável e encorajador. Vais analisar a resposta de um aluno a uma pergunta sobre uma fábula. Dá um feedback conciso (máximo 2-3 frases) e construtivo. Foca-te em saber se a ideia principal está correta e sugere melhorias se necessário. Fala em português (Portugal).";
+            const userQuery = `Pergunta: "${perguntaContexto}"\nResposta do Aluno: "${textarea.value}"\n\nPor favor, analisa esta resposta.`;
 
-            // 5. Construir o payload da API
-            const payload = {
-                contents: [{ parts: [{ text: userQuery }] }],
-                systemInstruction: {
-                    parts: [{ text: systemPrompt }]
-                },
-                safetySettings: [
-                    { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
-                    { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
-                    { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
-                    { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' }
-                ]
-            };
-
-            // 6. Fazer a chamada fetch (com try/catch e exponential backoff)
             try {
-                let response;
-                let retryCount = 0;
-                const maxRetries = 3;
-                let delay = 1000;
+                // Tenta fazer a chamada à API com exponential backoff
+                const response = await fetchWithBackoff(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: userQuery }] }],
+                        systemInstruction: { parts: [{ text: systemPrompt }] }
+                    })
+                });
 
-                while (retryCount < maxRetries) {
-                    response = await fetch(apiUrl, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    });
-
-                    if (response.status === 429 || response.status >= 500) {
-                        // Throttling ou erro de servidor, espera e tenta de novo
-                        await new Promise(resolve => setTimeout(resolve, delay));
-                        delay *= 2; // Exponential backoff
-                        retryCount++;
-                    } else if (response.ok) {
-                        break; // Sucesso
-                    } else {
-                        // Outro erro (ex: 400 Bad Request), não tentar de novo
-                        throw new Error(`Erro da API: ${response.status} ${response.statusText}`);
-                    }
+                if (!response.ok) {
+                    throw new Error(`Erro da API: ${response.statusText}`);
                 }
 
-                if (!response || !response.ok) {
-                    throw new Error('Falha na chamada à API após várias tentativas.');
-                }
-                
                 const result = await response.json();
-
-                // 7. Extrair e mostrar a resposta
                 const candidate = result.candidates?.[0];
+
                 if (candidate && candidate.content?.parts?.[0]?.text) {
-                    const iaFeedback = candidate.content.parts[0].text;
-                    feedbackDiv.innerText = `Feedback da IA: ${iaFeedback}`;
+                    feedbackDiv.innerText = "💡 " + candidate.content.parts[0].text;
                     feedbackDiv.className = "feedback-ia feedback-ia-success";
                 } else {
-                    let errorMsg = "A IA não conseguiu processar esta resposta.";
-                    if (candidate?.finishReason === "SAFETY") {
-                        errorMsg += " (A resposta foi bloqueada por motivos de segurança.)";
-                    }
-                    throw new Error(errorMsg);
+                    throw new Error("A resposta da IA veio vazia ou mal formatada.");
                 }
 
             } catch (error) {
-                console.error("Erro ao chamar a IA:", error);
-                feedbackDiv.innerText = "❌ Ocorreu um erro ao tentar obter feedback da IA. Tenta novamente mais tarde.";
+                console.error("Erro ao chamar a API Gemini:", error);
+                feedbackDiv.innerText = "❌ Ocorreu um erro ao tentar analisar. Por favor, tenta novamente mais tarde.";
                 feedbackDiv.className = "feedback-ia feedback-ia-error";
             } finally {
-                button.disabled = false; // Reativa o botão
+                botao.disabled = false;
             }
         }
 
-
-        // --- Lógica de Submissão e Certificado (SIMULADA) ---
-
-        document.getElementById('submit-all').addEventListener('click', function() {
-            const nome = document.getElementById('nome').value;
-            // A validação do nome já foi feita no 'mostrarSeccao', mas verificamos de novo
-            if (nome.trim() === "") {
-                alert("Ocorreu um erro. Por favor, recarrega a página e preenche o teu nome.");
-                return;
+        // --- Função de Backoff Exponencial para a API ---
+        async function fetchWithBackoff(url, options, retries = 3, delay = 1000) {
+            try {
+                const response = await fetch(url, options);
+                if (response.status === 429 || response.status >= 500) {
+                    // Erro de "Too Many Requests" ou erro de servidor
+                    if (retries > 0) {
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                        return fetchWithBackoff(url, options, retries - 1, delay * 2);
+                    } else {
+                        throw new Error("A API está sobrecarregada. Tenta mais tarde.");
+                    }
+                }
+                return response;
+            } catch (error) {
+                if (retries > 0) {
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    return fetchWithBackoff(url, options, retries - 1, delay * 2);
+                } else {
+                    throw error;
+                }
             }
+        }
 
+        // --- Event listener para o botão de submissão final ---
+        document.getElementById('submit-all').addEventListener('click', function() {
             // --- Cálculo da Pontuação (SIMULAÇÃO) ---
             let pontuacao = 0;
-            let maxPontos = 20;
+            const maxPontos = 20;
 
+            // Pergunta 2.1 (Vale 3 pontos se > 10 caracteres)
             if (document.getElementById('ex1-2-1').value.length > 10) pontuacao += 3;
-            if (document.getElementById('ex1-2-2-just').value.length > 10) pontuacao += 2;
-            
-            // Simulação de acerto nos checkboxes
-            const cbC = document.getElementById('cb-c').checked;
-            if (cbC) pontuacao += 2; // Bónus se acertou em 'matreira'
 
+            // Pergunta 2.2 (Vale 4 pontos)
+            const cbA = document.getElementById('cb-a').checked;
+            const cbC = document.getElementById('cb-c').checked;
+            const cbOutras = document.getElementById('cb-b').checked || document.getElementById('cb-d').checked || document.getElementById('cb-e').checked || document.getElementById('cb-f').checked;
+            
+            if (cbA && cbC && !cbOutras) {
+                pontuacao += 4; // Resposta perfeita
+            } else if (cbA || cbC) {
+                pontuacao += 2; // Meia resposta
+            }
+            // Justificação (Vale 2 pontos se > 10 caracteres)
+            if (document.getElementById('ex1-2-2-just').value.length > 10) pontuacao += 2;
+
+
+            // Pergunta 3 (Vale 3 pontos se > 10 caracteres)
             if (document.getElementById('ex1-3').value.length > 10) pontuacao += 3;
+
+            // Pergunta 4 (Vale 3 pontos se > 10 caracteres)
             if (document.getElementById('ex1-4').value.length > 10) pontuacao += 3;
+
+            // Pergunta 5.1 (Vale 2.5 pontos por coluna)
             if (document.getElementById('ex2-a').value.length > 10) pontuacao += 2.5;
             if (document.getElementById('ex2-b').value.length > 10) pontuacao += 2.5;
-
-            // Bónus por participação
-            pontuacao += 2; 
-            if (pontuacao > maxPontos) pontuacao = maxPontos; // Limita ao máximo
             
+            // Arredonda a pontuação
             pontuacao = Math.round(pontuacao);
 
             // --- Exibir Resultados ---
-            document.getElementById('res-nome').innerText = nome;
+            document.getElementById('res-nome').innerText = document.getElementById('nome').value;
             document.getElementById('res-pontuacao').innerText = `${pontuacao} / ${maxPontos}`;
             
             let feedbackFinal = "";
-            if (pontuacao > (maxPontos * 0.8)) {
+            if (pontuacao >= (maxPontos * 0.85)) {
                 feedbackFinal = "Excelente trabalho! Mostraste uma ótima compreensão das fábulas.";
-            } else if (pontuacao > (maxPontos * 0.5)) {
+            } else if (pontuacao >= (maxPontos * 0.5)) {
                 feedbackFinal = "Bom trabalho! Conseguiste acertar na maioria das questões.";
             } else {
                 feedbackFinal = "Continua a praticar. Lê novamente os textos e tenta rever as tuas respostas.";
@@ -485,18 +679,16 @@
             document.getElementById('res-feedback').innerText = feedbackFinal;
             
             document.getElementById('resultados').style.display = 'block';
-            document.getElementById('submit-all').style.display = 'none'; // Esconde o botão de submeter
-            
-            // Rola para os resultados
-            document.getElementById('resultados').scrollIntoView({ behavior: 'smooth' });
+            this.style.display = 'none'; // Esconde o botão de submeter
+            document.getElementById('progressBar').style.width = '100%';
         });
 
-        // Event listener para o "Download" do Certificado
+        // --- Event listener para o "Download" do Certificado ---
         document.getElementById('download-cert').addEventListener('click', function() {
             const nome = document.getElementById('res-nome').innerText;
             const pontuacao = document.getElementById('res-pontuacao').innerText;
-            const ano = document.getElementById('ano').value || "Não preenchido";
-            const turma = document.getElementById('turma').value || "Não preenchido";
+            const ano = document.getElementById('ano').value || "Ano";
+            const turma = document.getElementById('turma').value || "Turma";
             const data = new Date().toLocaleDateString('pt-PT');
 
             // Cria o conteúdo do certificado numa nova janela
@@ -504,15 +696,15 @@
             certWindow.document.write(`
                 <html>
                 <head><title>Certificado de Conclusão</title></head>
-                <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px; border: 10px solid #0056b3;">
-                    <h1 style="color: #0056b3;">Certificado de Conclusão</h1>
-                    <p style="font-size: 18px;">Certifica-se que</p>
-                    <h2 style="color: #007bff; margin: 10px 0;">${nome}</h2>
-                    <p style="font-size: 18px;">do <strong>${ano} Ano, Turma ${turma}</strong></p>
-                    <p style="font-size: 18px;">concluiu a Ficha de Leitura Interativa sobre Fábulas</p>
-                    <p style="font-size: 20px; margin-top: 30px;">Com uma pontuação (simulada) de:</p>
-                    <h3 style="font-size: 24px;">${pontuacao}</h3>
-                    <p style="margin-top: 50px; font-size: 14px;">Emitido em: ${data}</p>
+                <body style="font-family: Arial, sans-serif; text-align: center; padding: 40px; border: 10px solid #2c3e50; margin: 20px;">
+                    <h1 style="color: #2980b9; font-size: 2.5em;">Certificado de Conclusão</h1>
+                    <p style="font-size: 1.2em; margin-top: 30px;">Certifica-se que</p>
+                    <h2 style="color: #2c3e50; margin: 20px 0; font-size: 2.2em;">${nome}</h2>
+                    <p style="font-size: 1.2em;">do <strong>${ano}</strong>, Turma <strong>${turma}</strong></p>
+                    <p style="font-size: 1.2em; margin-top: 20px;">concluiu a Ficha de Leitura Interativa sobre Fábulas</p>
+                    <p style="font-size: 1.4em; margin-top: 30px;">Com uma pontuação de:</p>
+                    <h3 style="font-size: 2.5em; color: #27ae60; margin: 15px 0;">${pontuacao}</h3>
+                    <p style="margin-top: 50px; font-size: 1em; color: #777;">Emitido em: ${data}</p>
                     <script>
                         // Ao carregar, abre a janela de impressão
                         window.onload = function() {
