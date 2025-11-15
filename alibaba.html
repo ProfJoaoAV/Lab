@@ -1,0 +1,1247 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exercício de Leitura: Ali Babá</title>
+    <!-- 1. Carregar Tailwind CSS para estilo -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- 2. Carregar a biblioteca jsPDF para gerar o certificado -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- ADICIONADO: html2canvas para capturar a imagem no PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    
+    <!-- 3. Configuração do Tailwind (opcional, para usar a fonte Inter) -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        serif: ['Georgia', 'serif'], // Adicionar uma fonte serifada
+                    },
+                },
+            },
+        }
+    </script>
+    
+    <!-- 4. Estilos CSS personalizados -->
+    <style>
+        /* Ocultar secções por defeito */
+        .section {
+            display: none;
+        }
+        /* Mostrar a secção ativa */
+        .section.active {
+            display: block;
+        }
+        
+        /* Estilo para feedback da IA */
+        .ai-feedback {
+            padding: 0.75rem;
+            margin-top: 0.75rem;
+            border-radius: 0.5rem;
+            font-size: 0.9rem;
+        }
+        .ai-feedback.correct {
+            background-color: #d1fae5; /* green-100 */
+            color: #065f46; /* green-800 */
+            border: 1px solid #a7f3d0; /* green-200 */
+        }
+        .ai-feedback.incorrect {
+            background-color: #fee2e2; /* red-100 */
+            color: #991b1b; /* red-800 */
+            border: 1px solid #fecaca; /* red-200 */
+        }
+        .ai-feedback.loading {
+            background-color: #e5e7eb; /* gray-200 */
+            color: #4b5563; /* gray-600 */
+        }
+        
+        /* Desativar eventos de ponteiro em botões desativados */
+        button:disabled {
+            pointer-events: none;
+        }
+
+        /* Estilo para indentação de parágrafo */
+        .reading-text p {
+            text-indent: 2em; /* Indentação de parágrafo */
+            margin-bottom: 0.75rem; /* Espaço entre parágrafos */
+        }
+        .reading-text p:first-child {
+            text-indent: 0; /* Sem indentação no primeiro parágrafo */
+        }
+        
+        /* Classe utilitária para esconder elementos */
+        .hidden {
+            display: none;
+        }
+
+        /* Estilo para a pré-visualização da foto */
+        #photo-preview {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid #cbd5e1; /* gray-300 */
+            background-color: #f1f5f9; /* slate-100 */
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        /* Estilo para a foto no certificado */
+        #cert-photo {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 4px solid #1e3a8a; /* blue-900 */
+            background-color: #f1f5f9;
+        }
+
+        /* --- NOVOS ESTILOS PARA O MODAL --- */
+        .modal-overlay {
+            display: none; /* Escondido por defeito */
+            position: fixed;
+            inset: 0;
+            background-color: rgba(0, 0, 0, 0.75);
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            max-width: 400px;
+            width: 100%;
+        }
+        /* Classe utilitária para esconder/mostrar modals */
+        .modal-hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans antialiased">
+            <p class="text-xl text-gray-600">Ali Babá e a Fórmula Mágica</p>
+        </header>
+
+        <!-- Secção 0: Introdução (COM UPLOAD DE FOTO) -->
+        <div id="section-intro" class="section bg-white p-6 md:p-8 rounded-lg shadow-xl">
+            <h2 class="text-2xl font-semibold mb-4 text-gray-800 text-center">Bem-vindo(a)!</h2>
+            <p class="text-gray-600 mb-6 text-center">Prepara-te para ler um texto e responder a 7 níveis de perguntas. No final, receberás um certificado!</p>
+            
+            <div class="space-y-6 max-w-md mx-auto">
+                <div>
+                    <label for="student-name" class="block text-sm font-medium text-gray-700 mb-1">O teu nome completo</label>
+                    <input type="text" id="student-name" class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500" placeholder="Insere o teu nome para o certificado">
+                </div>
+
+                <!-- Input de Fotografia -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2 text-center">Fotografia (Opcional)</label>
+                    <div class="flex flex-col items-center space-y-4">
+                        <!-- Pré-visualização da foto -->
+                        <img id="photo-preview" src="https://placehold.co/100x100/f1f5f9/cbd5e1?text=Foto" alt="Pré-visualização da foto">
+                        
+                        <!-- BOTÃO ATUALIZADO: Agora abre o modal de escolha -->
+                        <button onclick="openPhotoModal()" class="cursor-pointer bg-white border border-gray-400 text-gray-700 font-medium py-2 px-4 rounded-lg shadow-sm hover:bg-gray-50 transition-colors">
+                            Adicionar Foto (para o Certificado)
+                        </button>
+                        <!-- INPUT ATUALIZADO: 'capture' removido pois teremos um botão explícito -->
+                        <input type="file" id="photo-upload" accept="image/*" class="hidden">
+                        <p class="text-xs text-gray-500">Podes usar a câmara ou carregar um ficheiro.</p>
+                    </div>
+                </div>
+            </div>
+
+            <button id="start-button" onclick="startApp()" class="mt-8 w-full max-w-md mx-auto bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition-colors shadow-md text-lg block">
+                Começar Desafio
+            </button>
+        </div>
+
+        <!-- Secção 1: O Texto -->
+            <div id="section-texto" class="section">
+                <h2 class="text-2xl font-semibold mb-4 text-gray-800">1. O Texto: A Fórmula Mágica</h2>
+                
+                <!-- TEXTO ATUALIZADO: Sem números de linha, mais apelativo -->
+                <div class="font-serif text-lg bg-white border-l-4 border-blue-200 p-6 rounded-lg h-96 overflow-y-auto shadow-inner reading-text" style="line-height: 1.7;">
+                    <p class="font-sans font-bold text-xl mb-4 text-center">A fórmula mágica</p>
+                    
+                    <p style="text-indent: 0;">Numa cidade do Oriente, cujas muralhas brancas brilhavam no sopé da montanha Qâf, viviam dois irmãos. O mais velho chamava-se Qassem e o mais novo Ali. O pai deles era um modesto curtidor¹ de peles. Qassem casou-se com a filha de um rico mercador, que ao morrer lhe deixou os seus bens. A sua loja, situada numa praça sombreada de plátanos onde havia uma fonte coberta por um quiosque, oferecia aos clientes perfumes delicados e tecidos luxuosos.</p>
+                    <p>Ali também se casou. E, para sustentar a sua família, ia ao monte cortar lenha que atava em feixes e vendia. [...]</p>
+                    <p>Um dia em que andava ali a trabalhar, notou uma nuvem de poeira no vale, entre as oliveiras. Era uma coluna de cavaleiros que surgiu na base do outeiro², no atalho que ele tinha seguido. “Vão passar por aqui não tarda nada – disse Ali para si mesmo. – Quem serão eles? Honestos viajantes? Salteadores de estrada?... Seja como for, quando eles aqui chegarem será tarde para saber!”</p>
+                    <p>E decidiu esconder-se. O seu burro, a pastar por aqui e por ali, tinha-se afastado e já não se avistava. Ali optou por não o chamar, atravessou umas moitas e subiu para o alto de um cipreste muito frondoso. No seu entender, era tempo de deixar a caravana passar.</p>
+                    <p>Mas qual não foi o seu espanto quando, pouco depois, os cavaleiros pararam as suas montadas mesmo por baixo dele! Ficou a observá-los sem se mexer. Debaixo do umbaz, a larga capa que os envolvia, adivinhavam-se armas afiadas. “É sem dúvida um bando de salteadores!”, concluiu Ali para si mesmo. Contou exatamente quarenta, e não se encontrava lá muito seguro, escarranchado sobre um ramo.</p>
+                    <p>Os homens desamarravam os alforges³ que pendiam das selas dos seus cavalos. Um deles, afastando umas ramagens, chegou junto de uma saliência rochosa que se erguia, abrupta⁴, mesmo ao pé da árvore de Ali. E o lenhador ouviu-o gritar:</p>
+                    <p>– Abre-te, sésamo!</p>
+                    <p>E de imediato se desenhou na rocha uma abertura para lhes dar passagem!</p>
+                    <p>– Entremos – disse o homem.</p>
+                    <p>– Nós vamos atrás de ti, Qoja Hussein.</p>
+                    <p>Voltando-se um pouco, aquele que acabava de responder chamou os outros com um gesto. E, carregando o seu saque⁵, desapareceram todos na brecha, até ao último. Agora o que Ali mais desejava era recuperar o seu burro e fugir. Mas não iriam os ladrões sair nesse mesmo momento? Se eles o descobrissem ali, a sua vida não teria grande valor!</p>
+                    <p>“O mais seguro é não fazer nada”, pensou ele.</p>
+                    <p>E ficou empoleirado na árvore, tão imóvel como um saco de tâmaras. Assim se passaram talvez umas duas horas. Como os minutos pareciam longos! Por fim, os homens voltaram a aparecer e montaram todos a cavalo.</p>
+                    <p>Ali voltou a contá-los: quarenta, contando com o chefe; tinham saído todos! Esperou até ver a coluna afastar-se na planície, antes de se arriscar a descer. Depois, já tranquilo, pensou: “Vejamos se esta montanha me obedece também a mim!” E avançou entre o matagal até ao rochedo.</p>
+                    <p>– Abre-te, sésamo! – disse em voz solene.</p>
+                    <p>E a rocha deslocou-se!</p>
+                    <p>Ali Babá deu um passo para o interior da caverna, depois outro. Quando a parede se fechou atrás dele, nem pensou em inquietar-se com isso; estava todo entregue ao seu espanto.</p>
+                    <p>Curiosamente, a cavidade não é nada escura. Todos aqueles tesouros parecem irradiar luz. De um lado, peças de seda fina, roupas cintilantes bordadas a fio de ouro; de outro, bacias de porcelana a transbordar de colares e pulseiras. Joias amontoadas sobre bandejas de cobre: esmeraldas de um verde vivo, diamantes cristalinos como a água, ágatas multicores. Ali caminha sobre grossos tapetes da Índia e da Pérsia, nos quais tropeça. Quantas gerações de ladrões terão sido necessárias para acumular riquezas tão fabulosas!</p>
+                    <p>Depois de saciar um pouco os olhos, Ali Babá refletiu. Dois sacos de moedas bastavam para fazer dele um homem rico... E ali estão precisamente dois sacos vazios! Para os encher, tira uma mão-cheia daqui, outra mão-cheia dali, e no fim de contas era como se nada tivesse sido tirado. Depois pronuncia a fórmula mágica, a rocha desloca-se de novo e Ali já está cá fora.</p>
+                </div>
+
+                <button onclick="showSection('section-nivel-1')" class="mt-6 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition-colors shadow-md">
+                    Ir para o Nível 1
+                </button>
+            </div>
+
+            <!-- Secção 2: Nível 1 (Ligação) -->
+            <div id="section-nivel-1" class="section">
+                <h2 class="text-2xl font-semibold mb-1 text-gray-800">Nível 1: Identificação e Ligação</h2>
+                <p class="text-sm text-gray-500 mb-4">(Pontuação: 5 pontos)</p>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Coluna A (Perguntas) -->
+                    <div class="space-y-4">
+                        <h3 class="font-semibold text-lg">Coluna A</h3>
+                        <div class="flex items-center space-x-4">
+                            <label for="q1-1" class="font-medium w-48">1. Qassem</label>
+                            <select id="q1-1" class="flex-1 p-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                                <option value="">...</option><option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="D">D</option><option value="E">E</option>
+                            </select>
+                        </div>
+                        <div class="flex items-center space-x-4">
+                            <label for="q1-2" class="font-medium w-48">2. Ali</label>
+                            <select id="q1-2" class="flex-1 p-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                                <option value="">...</option><option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="D">D</option><option value="E">E</option>
+                            </select>
+                        </div>
+                        <div class="flex items-center space-x-4">
+                            <label for="q1-3" class="font-medium w-48">3. Qoja Hussein</label>
+                            <select id="q1-3" class="flex-1 p-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                                <option value="">...</option><option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="D">D</option><option value="E">E</option>
+                            </select>
+                        </div>
+                        <div class="flex items-center space-x-4">
+                            <!-- PERGUNTA ATUALIZADA -->
+                            <label for="q1-4" class="font-medium w-48">4. Curtidor (definição)</label>
+                            <select id="q1-4" class="flex-1 p-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                                <option value="">...</option><option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="D">D</option><option value="E">E</option>
+                            </select>
+                        </div>
+                        <div class="flex items-center space-x-4">
+                            <!-- PERGUNTA ATUALIZADA -->
+                            <label for="q1-5" class="font-medium w-48">5. Salteadores (definição)</label>
+                            <select id="q1-5" class="flex-1 p-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                                <option value="">...</option><option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="D">D</option><option value="E">E</option>
+                            </select>
+                        </div>
+                    </div>
+                    <!-- Coluna B (Respostas) -->
+                    <div class="space-y-2 bg-gray-50 p-4 rounded-lg border">
+                        <h3 class="font-semibold text-lg">Coluna B</h3>
+                        <p><strong class="mr-2">A.</strong> Ladrões que atacam viajantes nas estradas.</p>
+                        <p><strong class="mr-2">B.</strong> Homem que prepara e trata as peles de animais.</p>
+                        <p><strong class="mr-2">C.</strong> Subiu a um cipreste para se esconder.</p>
+                        <p><strong class="mr-2">D.</strong> Gritou a fórmula mágica para a rocha.</p>
+                        <p><strong class="mr-2">E.</strong> Casou com a filha de um rico mercador.</p>
+                    </div>
+                </div>
+                
+                <button id="btn-check-nivel-1" onclick="checkNivel1()" class="mt-6 w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg transition-colors shadow-md">
+                    Corrigir Nível 1
+                </button>
+                <div id="feedback-nivel-1" class="mt-4 font-semibold text-center"></div>
+                
+                <div class="flex justify-between mt-6">
+                    <button onclick="showSection('section-texto')" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg transition-colors">&larr; Voltar ao Texto</button>
+                    <button id="btn-next-nivel-2" onclick="showSection('section-nivel-2')" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors shadow-md" disabled>Próximo Nível &rarr;</button>
+                </div>
+            </div>
+
+            <!-- Secção 3: Nível 2 (Lacunas) -->
+            <div id="section-nivel-2" class="section">
+                <h2 class="text-2xl font-semibold mb-1 text-gray-800">Nível 2: Completar Espaços</h2>
+                <p class="text-sm text-gray-500 mb-4">(Pontuação: 5 pontos)</p>
+                <div class="space-y-4">
+                    <p>1. O pai de Ali e Qassem era um modesto <input type="text" id="q2-1" class="p-1 border-b border-gray-400 focus:border-blue-500 outline-none"> de peles.</p>
+                    <p>2. Ali decidiu esconder-se no alto de um <input type="text" id="q2-2" class="p-1 border-b border-gray-400 focus:border-blue-500 outline-none"> muito frondoso.</p>
+                    <p>3. Ali contou exatamente <input type="text" id="q2-3" class="p-1 border-b border-gray-400 focus:border-blue-500 outline-none"> cavaleiros.</p>
+                    <p>4. A fórmula mágica para abrir a rocha era: "<input type="text" id="q2-4" class="p-1 border-b border-gray-400 focus:border-blue-500 outline-none">!".</p>
+                    <p>5. Dentro da caverna, Ali viu roupas cintilantes bordadas a fio de <input type="text" id="q2-5" class="p-1 border-b border-gray-400 focus:border-blue-500 outline-none">.</p>
+                </div>
+                
+                <button id="btn-check-nivel-2" onclick="checkNivel2()" class="mt-6 w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg transition-colors shadow-md">
+                    Corrigir Nível 2
+                </button>
+                <div id="feedback-nivel-2" class="mt-4 font-semibold text-center"></div>
+
+                <div class="flex justify-between mt-6">
+                    <button onclick="showSection('section-nivel-1')" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg transition-colors">&larr; Nível Anterior</button>
+                    <button id="btn-next-nivel-3" onclick="showSection('section-nivel-3')" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors shadow-md" disabled>Próximo Nível &rarr;</button>
+                </div>
+            </div>
+
+            <!-- Secção 4: Nível 3 (Verdadeiro/Falso) -->
+            <div id="section-nivel-3" class="section">
+                <h2 class="text-2xl font-semibold mb-1 text-gray-800">Nível 3: Verdadeiro ou Falso</h2>
+                <p class="text-sm text-gray-500 mb-4">(Pontuação: 5 pontos)</p>
+                <div class="space-y-4">
+                    <div class="p-4 border rounded-lg">
+                        <p class="mb-2">1. ( ) Ali e Qassem começaram a vida com a mesma riqueza.</p>
+                        <div class="space-x-4"><label><input type="radio" name="q3-1" value="V"> V</label><label><input type="radio" name="q3-1" value="F"> F</label></div>
+                    </div>
+                    <div class="p-4 border rounded-lg">
+                        <p class="mb-2">2. ( ) Ali escondeu-se dos cavaleiros debaixo de um umbaz.</p>
+                        <div class="space-x-4"><label><input type="radio" name="q3-2" value="V"> V</label><label><input type="radio" name="q3-2" value="F"> F</label></div>
+                    </div>
+                    <div class="p-4 border rounded-lg">
+                        <p class="mb-2">3. ( ) O primeiro pensamento de Ali foi que os cavaleiros eram viajantes honestos.</p>
+                        <div class="space-x-4"><label><input type="radio" name="q3-3" value="V"> V</label><label><input type="radio" name="q3-3" value="F"> F</label></div>
+                    </div>
+                    <div class="p-4 border rounded-lg">
+                        <p class="mb-2">4. ( ) A caverna estava totalmente escura por dentro, mas Ali habituou-se à escuridão.</p>
+                        <div class="space-x-4"><label><input type="radio" name="q3-4" value="V"> V</label><label><input type="radio" name="q3-4" value="F"> F</label></div>
+                    </div>
+                    <div class="p-4 border rounded-lg">
+                        <p class="mb-2">5. ( ) Ali decidiu encher vários sacos grandes com o máximo de ouro que conseguiu encontrar.</p>
+                        <div class="space-x-4"><label><input type="radio" name="q3-5" value="V"> V</label><label><input type="radio" name="q3-5" value="F"> F</label></div>
+                    </div>
+                </div>
+                
+                <button id="btn-check-nivel-3" onclick="checkNivel3()" class="mt-6 w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg transition-colors shadow-md">
+                    Corrigir Nível 3
+                </button>
+                <div id="feedback-nivel-3" class="mt-4 font-semibold text-center"></div>
+
+                <div class="flex justify-between mt-6">
+                    <button onclick="showSection('section-nivel-2')" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg transition-colors">&larr; Nível Anterior</button>
+                    <button id="btn-next-nivel-4" onclick="showSection('section-nivel-4')" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors shadow-md" disabled>Próximo Nível &rarr;</button>
+                </div>
+            </div>
+
+            <!-- Secção 5: Nível 4 (Ordem) - TROCADO -->
+            <div id="section-nivel-4" class="section">
+                <h2 class="text-2xl font-semibold mb-1 text-gray-800">Nível 4: Ordenação Cronológica</h2>
+                <p class="text-sm text-gray-500 mb-4">(Pontuação: 5 pontos)</p>
+                <p class="mb-4">Ordena os seguintes acontecimentos de 1 a 5.</p>
+                <div class="space-y-3">
+                    <div class="flex items-center space-x-3">
+                        <input type="number" id="q4-1" min="1" max="5" class="w-16 p-2 border border-gray-300 rounded-lg text-center">
+                        <label for="q4-1">( ) Ali ouve um homem chamado Qoja Hussein dar uma ordem a uma rocha.</label>
+                    </div>
+                    <div class="flex items-center space-x-3">
+                        <input type="number" id="q4-2" min="1" max="5" class="w-16 p-2 border border-gray-300 rounded-lg text-center">
+                        <label for="q4-2">( ) Os quarenta homens montam os seus cavalos e desaparecem na planície.</label>
+                    </div>
+                    <div class="flex items-center space-x-3">
+                        <input type="number" id="q4-3" min="1" max="5" class="w-16 p-2 border border-gray-300 rounded-lg text-center">
+                        <label for="q4-3">( ) Ali Babá vê uma nuvem de poeira e uma coluna de cavaleiros ao longe.</label>
+                    </div>
+                    <div class="flex items-center space-x-3">
+                        <input type="number" id="q4-4" min="1" max="5" class="w-16 p-2 border border-gray-300 rounded-lg text-center">
+                        <label for="q4-4">( ) Ali reflete que apenas dois sacos de moedas o fariam rico.</label>
+                    </div>
+                    <div class="flex items-center space-x-3">
+                        <input type="number" id="q4-5" min="1" max="5" class="w-16 p-2 border border-gray-300 rounded-lg text-center">
+                        <label for="q4-5">( ) Ali sobe a um cipreste frondoso para deixar a caravana passar.</label>
+                    </div>
+                </div>
+
+                <button id="btn-check-nivel-4" onclick="checkNivel4()" class="mt-6 w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg transition-colors shadow-md">
+                    Corrigir Nível 4
+                </button>
+                <div id="feedback-nivel-4" class="mt-4 font-semibold text-center"></div>
+
+                <div class="flex justify-between mt-6">
+                    <button onclick="showSection('section-nivel-3')" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg transition-colors">&larr; Nível Anterior</button>
+                    <button id="btn-next-nivel-5" onclick="showSection('section-nivel-5')" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors shadow-md" disabled>Próximo Nível &rarr;</button>
+                </div>
+            </div>
+
+            <!-- Secção 6: Nível 5 (Resposta Curta - IA) - TROCADO E CORRIGIDO -->
+            <div id="section-nivel-5" class="section">
+                <h2 class="text-2xl font-semibold mb-1 text-gray-800">Nível 5: Resposta Curta</h2>
+                <p class="text-sm text-gray-500 mb-4">(Pontuação: 5 pontos - Verificado por IA)</p>
+                <div class="space-y-6">
+                    <!-- Pergunta 5.1 (REPOSTA) -->
+                    <div class="p-4 border rounded-lg bg-gray-50 shadow-sm">
+                        <label for="q5-1" class="font-medium">1. Onde ficava a loja de Qassem?</label>
+                        <textarea id="q5-1" rows="2" class="mt-2 w-full p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500" placeholder="Escreve a tua resposta..."></textarea>
+                        <button id="btn-ai-5-1" onclick="checkWithAI('q5-1', 'Onde ficava a loja de Qassem?')" class="mt-2 w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-colors text-sm">Verificar com IA</button>
+                        <div id="feedback-q5-1" class="ai-feedback" style="display: none;"></div>
+                    </div>
+                    <!-- Pergunta 5.2 (REPOSTA) -->
+                    <div class="p-4 border rounded-lg bg-gray-50 shadow-sm">
+                        <label for="q5-2" class="font-medium">2. O que levou Ali a concluir que os homens eram "um bando de salteadores"?</label>
+                        <textarea id="q5-2" rows="2" class="mt-2 w-full p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500" placeholder="Escreve a tua resposta..."></textarea>
+                        <button id="btn-ai-5-2" onclick="checkWithAI('q5-2', 'O que levou Ali a concluir que os homens eram um bando de salteadores?')" class="mt-2 w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-colors text-sm">Verificar com IA</button>
+                        <div id="feedback-q5-2" class="ai-feedback" style="display: none;"></div>
+                    </div>
+                    <!-- Pergunta 5.3 (REPOSTA) -->
+                    <div class="p-4 border rounded-lg bg-gray-50 shadow-sm">
+                        <label for="q5-3" class="font-medium">3. Qual foi a reação de Ali ao ver a caverna por dentro pela primeira vez?</label>
+                        <textarea id="q5-3" rows="2" class="mt-2 w-full p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500" placeholder="Escreve a tua resposta..."></textarea>
+                        <button id="btn-ai-5-3" onclick="checkWithAI('q5-3', 'Qual foi a reação de Ali ao ver a caverna por dentro pela primeira vez?')" class="mt-2 w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-colors text-sm">Verificar com IA</button>
+                        <div id="feedback-q5-3" class="ai-feedback" style="display: none;"></div>
+                    </div>
+                    <!-- Pergunta 5.4 (Antiga 4.4) -->
+                    <div class="p-4 border rounded-lg bg-gray-50 shadow-sm">
+                        <label for="q5-4" class="font-medium">4. Transcreve as duas comparações (expressões que usam 'como') que encontraste no texto.</label>
+                        <textarea id="q5-4" rows="2" class="mt-2 w-full p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500" placeholder="Escreve a tua resposta..."></textarea>
+                        <button id="btn-ai-5-4" onclick="checkWithAI('q5-4', 'Transcreve as duas comparações (expressões que usam \'como\') que encontraste no texto.')" class="mt-2 w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-colors text-sm">Verificar com IA</button>
+                        <div id="feedback-q5-4" class="ai-feedback" style="display: none;"></div>
+                    </div>
+                    <!-- Pergunta 5.5 (Antiga 4.5) -->
+                    <div class="p-4 border rounded-lg bg-gray-50 shadow-sm">
+                        <label for="q5-5" class="font-medium">5. Que tipo de joias e pedras preciosas são mencionadas no texto?</label>
+                        <textarea id="q5-5" rows="2" class="mt-2 w-full p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500" placeholder="Escreve a tua resposta..."></textarea>
+                        <button id="btn-ai-5-5" onclick="checkWithAI('q5-5', 'Que tipo de joias e pedras preciosas são mencionadas no texto?')" class="mt-2 w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-colors text-sm">Verificar com IA</button>
+                        <div id="feedback-q5-5" class="ai-feedback" style="display: none;"></div>
+                    </div>
+                </div>
+                
+                <div class="flex justify-between mt-6">
+                    <button onclick="showSection('section-nivel-4')" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg transition-colors">&larr; Nível Anterior</button>
+                    <button onclick="showSection('section-nivel-6')" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors shadow-md">Próximo Nível &rarr;</button>
+                </div>
+            </div>
+            
+            <!-- Secção 7: Nível 6 (Inferência - IA) -->
+            <div id="section-nivel-6" class="section">
+                <h2 class="text-2xl font-semibold mb-1 text-gray-800">Nível 6: Perguntas de Inferência</h2>
+                <p class="text-sm text-gray-500 mb-4">(Pontuação: 5 pontos - Verificado por IA)</p>
+                <div class="space-y-6">
+                    <!-- Pergunta 6.1 - ATUALIZADA - Sem linha -->
+                    <div class="p-4 border rounded-lg bg-gray-50 shadow-sm">
+                        <label for="q6-1" class="font-medium">1. Por que motivo Ali não se assustou nem tentou fugir quando a rocha se fechou atrás dele (logo após entrar)?</label>
+                        <textarea id="q6-1" rows="3" class="mt-2 w-full p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500" placeholder="Justifica com base no texto..."></textarea>
+                        <button id="btn-ai-6-1" onclick="checkWithAI('q6-1', 'Por que motivo Ali não se assustou nem tentou fugir quando a rocha se fechou atrás dele (logo após entrar)?')" class="mt-2 w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-colors text-sm">Verificar com IA</button>
+                        <div id="feedback-q6-1" class="ai-feedback" style="display: none;"></div>
+                    </div>
+                    <!-- Pergunta 6.2 - ATUALIZADA - Sem linha -->
+                    <div class="p-4 border rounded-lg bg-gray-50 shadow-sm">
+                        <label for="q6-2" class="font-medium">2. O que significa a expressão "era tempo de deixar a caravana passar"?</label>
+                        <textarea id="q6-2" rows="3" class="mt-2 w-full p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500" placeholder="Justifica com base no texto..."></textarea>
+                        <button id="btn-ai-6-2" onclick="checkWithAI('q6-2', 'O que significa a expressão era tempo de deixar a caravana passar?')" class="mt-2 w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-colors text-sm">Verificar com IA</button>
+                        <div id="feedback-q6-2" class="ai-feedback" style="display: none;"></div>
+                    </div>
+                    <!-- Pergunta 6.3 - ATUALIZADA - Sem linha -->
+                    <div class="p-4 border rounded-lg bg-gray-50 shadow-sm">
+                        <label for="q6-3" class="font-medium">3. O texto diz que Ali ficou "tão imóvel como um saco de tâmaras". Porque é que esta imobilidade era tão importante?</label>
+                        <textarea id="q6-3" rows="3" class="mt-2 w-full p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500" placeholder="Justifica com base no texto..."></textarea>
+                        <button id="btn-ai-6-3" onclick="checkWithAI('q6-3', 'O texto diz que Ali ficou tão imóvel como um saco de tâmaras. Porque é que esta imobilidade era tão importante?')" class="mt-2 w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-colors text-sm">Verificar com IA</button>
+                        <div id="feedback-q6-3" class="ai-feedback" style="display: none;"></div>
+                    </div>
+                    <!-- Pergunta 6.4 - ATUALIZADA - Sem linha -->
+                    <div class="p-4 border rounded-lg bg-gray-50 shadow-sm">
+                        <label for="q6-4" class="font-medium">4. Ali levou apenas o suficiente para encher dois sacos. Porque achas que ele foi tão moderado?</label>
+                        <textarea id="q6-4" rows="3" class="mt-2 w-full p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500" placeholder="Justifica com base no texto..."></textarea>
+                        <button id="btn-ai-6-4" onclick="checkWithAI('q6-4', 'Ali levou apenas o suficiente para encher dois sacos. Porque achas que ele foi tão moderado?')" class="mt-2 w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-colors text-sm">Verificar com IA</button>
+                        <div id="feedback-q6-4" class="ai-feedback" style="display: none;"></div>
+                    </div>
+                    <!-- Pergunta 6.5 - ATUALIZADA - Sem linha -->
+                    <div class="p-4 border rounded-lg bg-gray-50 shadow-sm">
+                        <label for="q6-5" class="font-medium">5. Quando Ali vê os cavaleiros, ele pergunta-se: "Honestos viajantes? Salteadores...". O que o fez ter a certeza de que eram salteadores?</label>
+                        <textarea id="q6-5" rows="3" class="mt-2 w-full p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500" placeholder="Justifica com base no texto..."></textarea>
+                        <button id="btn-ai-6-5" onclick="checkWithAI('q6-5', 'Quando Ali vê os cavaleiros, ele pergunta-se: Honestos viajantes? Salteadores.... O que o fez ter a certeza de que eram salteadores?')" class="mt-2 w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-colors text-sm">Verificar com IA</button>
+                        <div id="feedback-q6-5" class="ai-feedback" style="display: none;"></div>
+                    </div>
+                </div>
+
+                <div class="flex justify-between mt-6">
+                    <button onclick="showSection('section-nivel-5')" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg transition-colors">&larr; Nível Anterior</button>
+                    <button onclick="showSection('section-nivel-7')" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors shadow-md">Próximo Nível &rarr;</button>
+                </div>
+            </div>
+            
+            <!-- Secção 8: Nível 7 (Opinião - IA) -->
+            <div id="section-nivel-7" class="section">
+                <h2 class="text-2xl font-semibold mb-1 text-gray-800">Nível 7: Perguntas de Reflexão e Opinião</h2>
+                <p class="text-sm text-gray-500 mb-4">(Pontuação: 5 pontos - Verificado por IA)</p>
+                <div class="space-y-6">
+                    <!-- Pergunta 7.1 -->
+                    <div class="p-4 border rounded-lg bg-gray-50 shadow-sm">
+                        <label for="q7-1" class="font-medium">1. Achas que a descoberta da caverna por Ali foi uma questão de justiça (por ele ser pobre e trabalhador) ou apenas de sorte?</label>
+                        <textarea id="q7-1" rows="3" class="mt-2 w-full p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500" placeholder="Dá a tua opinião e justifica..."></textarea>
+                        <button id="btn-ai-7-1" onclick="checkWithAI('q7-1', 'Achas que a descoberta da caverna por Ali foi uma questão de justiça (por ele ser pobre e trabalhador) ou apenas de sorte? Justifica.')" class="mt-2 w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-colors text-sm">Verificar com IA</button>
+                        <div id="feedback-q7-1" class="ai-feedback" style="display: none;"></div>
+                    </div>
+                    <!-- Pergunta 7.2 -->
+                    <div class="p-4 border rounded-lg bg-gray-50 shadow-sm">
+                        <label for="q7-2" class="font-medium">2. Se estivesses no lugar de Ali, tinhas tido a coragem de entrar na caverna depois de ver os salteadores? Porquê?</label>
+                        <textarea id="q7-2" rows="3" class="mt-2 w-full p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500" placeholder="Dá a tua opinião e justifica..."></textarea>
+                        <button id="btn-ai-7-2" onclick="checkWithAI('q7-2', 'Se estivesses no lugar de Ali, tinhas tido a coragem de entrar na caverna? Porquê?')" class="mt-2 w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-colors text-sm">Verificar com IA</button>
+                        <div id="feedback-q7-2" class="ai-feedback" style="display: none;"></div>
+                    </div>
+                    <!-- Pergunta 7.3 -->
+                    <div class="p-4 border rounded-lg bg-gray-50 shadow-sm">
+                        <label for="q7-3" class="font-medium">3. Achas que Ali devia ter partilhado o segredo com o seu irmão Qassem? Porquê?</label>
+                        <textarea id="q7-3" rows="3" class="mt-2 w-full p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500" placeholder="Dá a tua opinião e justifica..."></textarea>
+                        <button id="btn-ai-7-3" onclick="checkWithAI('q7-3', 'Achas que Ali devia ter partilhado o segredo com o seu irmão Qassem? Porquê?')" class="mt-2 w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-colors text-sm">Verificar com IA</button>
+                        <div id="feedback-q7-3" class="ai-feedback" style="display: none;"></div>
+                    </div>
+                    <!-- Pergunta 7.4 -->
+                    <div class="p-4 border rounded-lg bg-gray-50 shadow-sm">
+                        <label for="q7-4" class="font-medium">4. O tesouro era roubado. Achas que Ali tinha o direito de ficar com parte dele?</label>
+                        <textarea id="q7-4" rows="3" class="mt-2 w-full p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500" placeholder="Dá a tua opinião e justifica..."></textarea>
+                        <button id="btn-ai-7-4" onclick="checkWithAI('q7-4', 'O tesouro era roubado. Achas que Ali tinha o direito de ficar com parte dele? Justifica.')" class="mt-2 w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-colors text-sm">Verificar com IA</button>
+                        <div id="feedback-q7-4" class="ai-feedback" style="display: none;"></div>
+                    </div>
+                    <!-- Pergunta 7.5 -->
+                    <div class="p-4 border rounded-lg bg-gray-50 shadow-sm">
+                        <label for="q7-5" class="font-medium">5. Na vida real, o que consideras ser uma "fórmula mágica" (como "Abre-te, sésamo!") para mudar de vida?</label>
+                        <textarea id="q7-5" rows="3" class="mt-2 w-full p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500" placeholder="Dá a tua opinião e justifica..."></textarea>
+                        <button id="btn-ai-7-5" onclick="checkWithAI('q7-5', 'Na vida real, o que consideras ser uma fórmula mágica (como Abre-te, sésamo!) para mudar de vida?')" class="mt-2 w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-colors text-sm">Verificar com IA</button>
+                        <div id="feedback-q7-5" class="ai-feedback" style="display: none;"></div>
+                    </div>
+                </div>
+
+                <div class="flex justify-between mt-6">
+                    <button onclick="showSection('section-nivel-6')" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg transition-colors">&larr; Nível Anterior</button>
+                    <button onclick="showFinalSection()" class="bg-green-700 hover:bg-green-800 text-white font-bold py-2 px-4 rounded-lg transition-colors shadow-md">Ver Pontuação Final &rarr;</button>
+                </div>
+            </div>
+
+            <!-- Secção 9: Ecrã Final e Certificado -->
+            <div id="section-final" class="section text-center">
+                <h2 class="text-3xl font-bold mb-4 text-gray-800">Parabéns, terminaste!</h2>
+                <p class="text-xl text-gray-600 mb-8">Aqui está o teu resultado final e o teu certificado.</p>
+                
+                <!-- Conteúdo do Certificado (para ser capturado) -->
+                <div id="certificate-content" class="bg-white p-10 rounded-lg shadow-2xl border-8 border-blue-800" style="width: 800px; height: auto; background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);">
+                    <div class="text-center">
+                        <h2 class="text-2xl font-bold text-blue-700 mb-2">CERTIFICADO DE CONCLUSÃO</h2>
+                        <h3 class="text-lg font-medium text-gray-600 mb-6">Desafio de Leitura: A Fórmula Mágica</h3>
+                    </div>
+                    
+                    <div class="text-center mt-8">
+                        <!-- FOTO NO CERTIFICADO -->
+                        <img id="cert-photo" src="https://placehold.co/120x120/f1f5f9/1e3a8a?text=Foto" alt="Foto do Aluno" class="mx-auto mb-6">
+                    
+                        <p class="text-xl font-medium text-gray-700 mb-2">Certificado de Conclusão para</p>
+                        <h2 id="cert-name" class="text-4xl font-bold text-blue-900 mb-4">[Nome do Aluno]</h2>
+                        
+                        <p class="text-lg text-gray-700 mb-4">Completou com sucesso o desafio de interpretação de texto com uma pontuação final de:</p>
+                        <p id="cert-score" class="text-6xl font-bold text-green-700 mb-6">0/35</p>
+                        
+                        <p class="text-sm text-gray-500">Data de Conclusão: <span id="cert-date">--/--/----</span></p>
+                    </div>
+                </div>
+
+                <button onclick="downloadCertificate()" class="mt-8 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition-colors shadow-md text-lg">
+                    Download do Certificado (PDF)
+                </button>
+            </div>
+            
+    </div> <!-- Fim do Container Principal -->
+
+    <!-- ==== NOVOS ELEMENTOS HTML (MODALS) ==== -->
+
+    <!-- 1. Modal de Escolha (Ficheiro ou Câmara) -->
+    <div id="photo-modal" class="modal-overlay modal-hidden">
+        <div class="modal-content">
+            <h3 class="text-xl font-semibold mb-6 text-center text-gray-800">Adicionar Fotografia</h3>
+            <div class="space-y-4">
+                <button onclick="triggerFileUpload()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition-colors shadow-md">
+                    Carregar Ficheiro
+                </button>
+                <button onclick="openCamera()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg transition-colors shadow-md">
+                    Tirar Foto (Câmara)
+                </button>
+            </div>
+            <button onclick="closePhotoModal()" class="mt-6 w-full text-center text-gray-600 hover:text-gray-800">
+                Cancelar
+            </button>
+        </div>
+    </div>
+
+    <!-- 2. Modal da Câmara -->
+    <div id="camera-modal" class="modal-overlay modal-hidden">
+        <div class="modal-content">
+            <h3 class="text-xl font-semibold mb-4 text-center text-gray-800">Tirar Foto</h3>
+            <!-- O stream da câmara aparecerá aqui -->
+            <video id="video-feed" autoplay playsinline class="w-full h-auto rounded-lg bg-gray-200 border"></video>
+            
+            <button id="snap-photo-btn" onclick="snapPhoto()" class="mt-4 w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg transition-colors shadow-md">
+                Tirar Foto
+            </button>
+            <button onclick="closeCamera()" class="mt-2 w-full text-center text-gray-600 hover:text-gray-800">
+                Cancelar
+            </button>
+            
+            <!-- Canvas escondido para desenhar a imagem -->
+            <canvas id="photo-canvas" class="hidden"></canvas>
+        </div>
+    </div>
+
+    <!-- ======================================= -->
+
+
+    <script>
+        // --- Variáveis Globais da Aplicação ---
+        let score = 0;
+        let aiScores = {}; // Para guardar as pontuações da IA (1 por resposta correta)
+        // ADICIONADO: Variável para guardar a Data URL da foto
+        let userPhotoDataUrl = "https://placehold.co/120x120/f1f5f9/1e3a8a?text=Foto"; // Placeholder inicial
+        
+        // ADICIONADO: Variáveis para os novos elementos
+        let currentStream = null; // Para guardar o stream da câmara
+        let photoModal = null;
+        let cameraModal = null;
+        let videoFeed = null;
+        let photoCanvas = null;
+
+        // TEXTO ATUALIZADO: "A Fórmula Mágica" para a IA (Sem números de linha)
+        const textoAliBaba = `A fórmula mágica
+Numa cidade do Oriente, cujas muralhas brancas brilhavam no sopé da montanha Qâf, viviam dois irmãos. O mais velho chamava-se Qassem e o mais novo Ali. O pai deles era um modesto curtidor¹ de peles. Qassem casou-se com a filha de um rico mercador, que ao morrer lhe deixou os seus bens. A sua loja, situada numa praça sombreada de plátanos onde havia uma fonte coberta por um quiosque, oferecia aos clientes perfumes delicados e tecidos luxuosos.
+Ali também se casou. E, para sustentar a sua família, ia ao monte cortar lenha que atava em feixes e vendia. [...]
+Um dia em que andava ali a trabalhar, notou uma nuvem de poeira no vale, entre as oliveiras. Era uma coluna de cavaleiros que surgiu na base do outeiro², no atalho que ele tinha seguido. “Vão passar por aqui não tarda nada – disse Ali para si mesmo. – Quem serão eles? Honestos viajantes? Salteadores de estrada?... Seja como for, quando eles aqui chegarem será tarde para saber!”
+E decidiu esconder-se. O seu burro, a pastar por aqui e por ali, tinha-se afastado e já não se avistava. Ali optou por não o chamar, atravessou umas moitas e subiu para o alto de um cipreste muito frondoso. No seu entender, era tempo de deixar a caravana passar.
+Mas qual não foi o seu espanto quando, pouco depois, os cavaleiros pararam as suas montadas mesmo por baixo dele! Ficou a observá-los sem se mexer. Debaixo do umbaz, a larga capa que os envolvia, adivinhavam-se armas afiadas. “É sem dúvida um bando de salteadores!”, concluiu Ali para si mesmo. Contou exatamente quarenta, e não se encontrava lá muito seguro, escarranchado sobre um ramo.
+Os homens desamarravam os alforges³ que pendiam das selas dos seus cavalos. Um deles, afastando umas ramagens, chegou junto de uma saliência rochosa que se erguia, abrupta⁴, mesmo ao pé da árvore de Ali. E o lenhador ouviu-o gritar:
+– Abre-te, sésamo!
+E de imediato se desenhou na rocha uma abertura para lhes dar passagem!
+– Entremos – disse o homem.
+– Nós vamos atrás de ti, Qoja Hussein.
+Voltando-se um pouco, aquele que acabava de responder chamou os outros com um gesto. E, carregando o seu saque⁵, desapareceram todos na brecha, até ao último. Agora o que Ali mais desejava era recuperar o seu burro e fugir. Mas não iriam os ladrões sair nesse mesmo momento? Se eles o descobrissem ali, a sua vida não teria grande valor!
+“O mais seguro é não fazer nada”, pensou ele.
+E ficou empoleirado na árvore, tão imóvel como um saco de tâmaras. Assim se passaram talvez umas duas horas. Como os minutos pareciam longos! Por fim, os homens voltaram a aparecer e montaram todos a cavalo.
+Ali voltou a contá-los: quarenta, contando com o chefe; tinham saído todos! Esperou até ver a coluna afastar-se na planície, antes de se arriscar a descer. Depois, já tranquilo, pensou: “Vejamos se esta montanha me obedece também a mim!” E avançou entre o matagal até ao rochedo.
+– Abre-te, sésamo! – disse em voz solene.
+E a rocha deslocou-se!
+Ali Babá deu um passo para o interior da caverna, depois outro. Quando a parede se fechou atrás dele, nem pensou em inquietar-se com isso; estava todo entregue ao seu espanto.
+Curiosamente, a cavidade não é nada escura. Todos aqueles tesouros parecem irradiar luz. De um lado, peças de seda fina, roupas cintilantes bordadas a fio de ouro; de outro, bacias de porcelana a transbordar de colares e pulseiras. Joias amontoadas sobre bandejas de cobre: esmeraldas de um verde vivo, diamantes cristalinos como a água, ágatas multicores. Ali caminha sobre grossos tapetes da Índia e da Pérsia, nos quais tropeça. Quantas gerações de ladrões terão sido necessárias para acumular riquezas tão fabulosas!
+Depois de saciar um pouco os olhos, Ali Babá refletiu. Dois sacos de moedas bastavam para fazer dele um homem rico... E ali estão precisamente dois sacos vazios! Para os encher, tira uma mão-cheia daqui, outra mão-cheia dali, e no fim de contas era como se nada tivesse sido tirado. Depois pronuncia a fórmula mágica, a rocha desloca-se de novo e Ali já está cá fora.`;
+
+        // Gabaritos para correção automática (Números de linha das perguntas não afetam as respostas)
+        const answerKeys = {
+            nivel1: { 'q1-1': 'E', 'q1-2': 'C', 'q1-3': 'D', 'q1-4': 'B', 'q1-5': 'A' },
+            nivel2: { 'q2-1': 'curtidor', 'q2-2': 'cipreste', 'q2-3': 'quarenta', 'q2-4': 'abre-te, sésamo', 'q2-5': 'ouro' },
+            nivel3: { 'q3-1': 'F', 'q3-2': 'F', 'q3-3': 'F', 'q3-4': 'F', 'q3-5': 'F' }, // Todas continuam Falsas com o novo texto
+            // CHAVE ATUALIZADA: Nível 4 é agora a Ordenação
+            nivel4: { 'q4-1': '3', 'q4-2': '4', 'q4-3': '1', 'q4-4': '5', 'q4-5': '2' }
+        };
+
+        // Estado da aplicação
+        let currentSection = 'section-intro';
+
+        // --- Inicialização da Aplicação ---
+        // ADICIONADO: window.onload para configurar o upload de fotos
+        window.onload = function() {
+            // Mostrar a secção de introdução
+            showSection('section-intro');
+
+            // ADICIONADO: Obter referências aos novos elementos
+            photoModal = document.getElementById('photo-modal');
+            cameraModal = document.getElementById('camera-modal');
+            videoFeed = document.getElementById('video-feed');
+            photoCanvas = document.getElementById('photo-canvas');
+
+            // Lógica para o upload de fotografia (quando o <input> é acionado)
+            const photoUpload = document.getElementById('photo-upload');
+            const photoPreview = document.getElementById('photo-preview');
+            
+            photoUpload.addEventListener('change', (event) => {
+                const file = event.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        userPhotoDataUrl = e.target.result; // Guardar o Data URL
+                        photoPreview.src = userPhotoDataUrl; // Atualizar preview
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+        };
+
+        // --- Funções de Navegação e Estado ---
+        function showSection(sectionId) {
+            // Ocultar todas as secções
+            document.querySelectorAll('.section').forEach(section => {
+                section.classList.remove('active');
+            });
+            // Mostrar a secção desejada
+            document.getElementById(sectionId).classList.add('active');
+            // Mover o scroll para o topo
+            window.scrollTo(0, 0);
+        }
+
+        function startApp() {
+            // ATUALIZADO: Removida a lógica de erro, não era usada
+            const nameInput = document.getElementById('student-name');
+            if (nameInput.value.trim() === "") {
+                // Opcional: Adicionar feedback de erro se o nome for obrigatório
+                alert("Por favor, insere o teu nome para começar.");
+                return;
+            }
+            showSection('section-texto');
+        }
+        
+        function restartApp() {
+// ... existing code ... --> Oculto (função não utilizada)
+        }
+        
+        function showResults() {
+// ... existing code ... --> Oculto (função não utilizada)
+        }
+
+        // --- NOVAS FUNÇÕES (Gestão de Modals e Câmara) ---
+
+        /** Mostra o modal de escolha (Ficheiro ou Câmara) */
+        function openPhotoModal() {
+            if (photoModal) photoModal.classList.remove('modal-hidden');
+        }
+
+        /** Fecha o modal de escolha */
+        function closePhotoModal() {
+            if (photoModal) photoModal.classList.add('modal-hidden');
+        }
+
+        /** Aciona o clique no input de ficheiro escondido */
+        function triggerFileUpload() {
+            closePhotoModal();
+            document.getElementById('photo-upload').click();
+        }
+
+        /** Fecha o modal da câmara e para o stream de vídeo */
+        function closeCamera() {
+            if (cameraModal) cameraModal.classList.add('modal-hidden');
+            if (currentStream) {
+                // Parar todas as faixas (câmara)
+                currentStream.getTracks().forEach(track => track.stop());
+                currentStream = null;
+            }
+            if (videoFeed) videoFeed.srcObject = null;
+        }
+
+        /** Abre o modal da câmara e pede permissão */
+        async function openCamera() {
+            closePhotoModal();
+            if (cameraModal) cameraModal.classList.remove('modal-hidden');
+
+            // Verificar se o browser suporta mediaDevices
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                alert("O seu browser não suporta acesso à câmara.");
+                closeCamera();
+                return;
+            }
+
+            try {
+                // Pedir permissão para aceder à câmara
+                currentStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                if (videoFeed) {
+                    videoFeed.srcObject = currentStream;
+                    videoFeed.play(); // Garantir que o vídeo começa
+                }
+            } catch (err) {
+                console.error("Erro ao aceder à câmara:", err);
+                alert("Não foi possível aceder à câmara. Verifique as permissões do browser.");
+                closeCamera();
+            }
+        }
+
+        /** Tira a foto a partir do stream da câmara */
+        function snapPhoto() {
+            if (!videoFeed || !photoCanvas) return;
+
+            const photoPreview = document.getElementById('photo-preview');
+            const context = photoCanvas.getContext('2d');
+            
+            // Definir o tamanho do canvas para o tamanho do vídeo
+            photoCanvas.width = videoFeed.videoWidth;
+            photoCanvas.height = videoFeed.videoHeight;
+            
+            // Desenhar o frame atual do vídeo no canvas
+            context.drawImage(videoFeed, 0, 0, photoCanvas.width, photoCanvas.height);
+            
+            // Obter a imagem como Data URL (JPEG para melhor compressão)
+            userPhotoDataUrl = photoCanvas.toDataURL('image/jpeg');
+            
+            // Atualizar a pré-visualização
+            photoPreview.src = userPhotoDataUrl;
+            
+            // Fechar a câmara
+            closeCamera();
+        }
+
+        // --- Funções de Correção Automática ---
+
+        function checkNivel1() {
+            let scoreNivel1 = 0;
+            const keys = answerKeys.nivel1;
+            for (const qId in keys) {
+                const select = document.getElementById(qId);
+                // Remover feedback anterior se houver
+                const oldFeedback = select.parentElement.querySelector('.feedback-span');
+                if (oldFeedback) oldFeedback.remove();
+                
+                const correctIndicator = document.createElement('span');
+                correctIndicator.className = 'feedback-span'; // Para remoção fácil
+                
+                if (select.value === keys[qId]) {
+                    scoreNivel1++;
+                    correctIndicator.textContent = ' ✓';
+                    correctIndicator.className += ' text-green-600 font-bold';
+                } else {
+                    correctIndicator.textContent = ' ✗';
+                    correctIndicator.className += ' text-red-600 font-bold';
+                }
+                select.parentElement.appendChild(correctIndicator);
+                select.disabled = true; // Desativar após correção
+            }
+            
+            score += scoreNivel1;
+            document.getElementById('feedback-nivel-1').textContent = `Corrigido! Acertaste ${scoreNivel1} de 5. Pontuação total: ${score}`;
+            document.getElementById('feedback-nivel-1').className = 'mt-4 font-semibold text-center text-green-700';
+            document.getElementById('btn-check-nivel-1').disabled = true;
+            document.getElementById('btn-next-nivel-2').disabled = false;
+        }
+        
+        function checkNivel2() {
+            let scoreNivel2 = 0;
+            const keys = answerKeys.nivel2;
+            
+            for (const qId in keys) {
+                const input = document.getElementById(qId);
+                // Remover feedback anterior se houver
+                const oldFeedback = input.parentElement.querySelector('.feedback-span');
+                if (oldFeedback) oldFeedback.remove();
+
+                const userAnswer = input.value.trim().toLowerCase().replace(/[.,!]/g, ''); // Normalizar resposta
+                const correctAnswer = keys[qId];
+                
+                const correctIndicator = document.createElement('span');
+                correctIndicator.className = 'feedback-span';
+                if (userAnswer === correctAnswer) {
+                    scoreNivel2++;
+                    correctIndicator.textContent = ' ✓';
+                    correctIndicator.className += ' text-green-600 font-bold';
+                } else {
+                    correctIndicator.textContent = ` ✗ (Correto: ${correctAnswer})`;
+                    correctIndicator.className += ' text-red-600 font-bold text-sm';
+                }
+                input.parentElement.appendChild(correctIndicator);
+                input.disabled = true; // Desativar após correção
+            }
+            
+            score += scoreNivel2;
+            document.getElementById('feedback-nivel-2').textContent = `Corrigido! Acertaste ${scoreNivel2} de 5. Pontuação total: ${score}`;
+            document.getElementById('feedback-nivel-2').className = 'mt-4 font-semibold text-center text-green-700';
+            document.getElementById('btn-check-nivel-2').disabled = true;
+            document.getElementById('btn-next-nivel-3').disabled = false;
+        }
+
+        function checkNivel3() {
+            let scoreNivel3 = 0;
+            const keys = answerKeys.nivel3;
+
+            for (const qId in keys) {
+                const radios = document.getElementsByName(qId);
+                let userAnswer = "";
+                let selectedRadio = null;
+                
+                // Remover feedback anterior se houver
+                const container = radios[0].parentElement.parentElement.parentElement;
+                const oldFeedback = container.querySelector('.feedback-span');
+                if (oldFeedback) oldFeedback.remove();
+
+                radios.forEach(radio => {
+                    if (radio.checked) {
+                        userAnswer = radio.value;
+                        selectedRadio = radio;
+                    }
+                    radio.disabled = true; // Desativar todos
+                });
+                
+                const correctIndicator = document.createElement('span');
+                correctIndicator.className = 'feedback-span';
+                if (userAnswer === keys[qId]) {
+                    scoreNivel3++;
+                    correctIndicator.textContent = ' ✓';
+                    correctIndicator.className += ' text-green-600 font-bold ml-2';
+                } else {
+                    correctIndicator.textContent = ` ✗ (Correto: ${keys[qId]})`;
+                    correctIndicator.className += ' text-red-600 font-bold ml-2 text-sm';
+                }
+                
+                if (selectedRadio) {
+                    selectedRadio.parentElement.parentElement.appendChild(correctIndicator);
+                } else {
+                    // Caso o aluno não responda
+                    container.appendChild(correctIndicator);
+                }
+            }
+            
+            score += scoreNivel3;
+            document.getElementById('feedback-nivel-3').textContent = `Corrigido! Acertaste ${scoreNivel3} de 5. Pontuação total: ${score}`;
+            document.getElementById('feedback-nivel-3').className = 'mt-4 font-semibold text-center text-green-700';
+            document.getElementById('btn-check-nivel-3').disabled = true;
+            document.getElementById('btn-next-nivel-4').disabled = false;
+        }
+
+        // FUNÇÃO ATUALIZADA: checkNivel5() renomeada para checkNivel4()
+        function checkNivel4() {
+            let scoreNivel4 = 0;
+            const keys = answerKeys.nivel4; // Usa a chave nivel4
+            const userAnswers = {};
+            const inputs = [];
+            let duplicate = false;
+            const seen = new Set();
+            
+            for (let i = 1; i <= 5; i++) {
+                const qId = `q4-${i}`; // Procura por q4-
+                const input = document.getElementById(qId);
+                inputs.push(input);
+                const val = input.value;
+                userAnswers[qId] = val;
+                
+                if (val && seen.has(val)) {
+                    duplicate = true;
+                }
+                if (val) seen.add(val);
+
+                // Remover feedback anterior
+                const oldFeedback = input.parentElement.querySelector('.feedback-span');
+                if (oldFeedback) oldFeedback.remove();
+            }
+
+            const feedbackEl = document.getElementById('feedback-nivel-4'); // Usa feedback-nivel-4
+            
+            if (duplicate) {
+                feedbackEl.textContent = 'Erro: Usaste o mesmo número mais do que uma vez. Tenta novamente.';
+                feedbackEl.className = 'mt-4 font-semibold text-center text-red-700';
+                return;
+            }
+
+            for (const qId in keys) {
+                const correctIndicator = document.createElement('span');
+                correctIndicator.className = 'feedback-span';
+                if (userAnswers[qId] === keys[qId]) {
+                    scoreNivel4++;
+                    correctIndicator.textContent = ' ✓';
+                    correctIndicator.className += ' text-green-600 font-bold ml-2';
+                } else {
+                    correctIndicator.textContent = ` ✗ (Correto: ${keys[qId]})`;
+                    correctIndicator.className += ' text-red-600 font-bold ml-2 text-sm';
+                }
+                document.getElementById(qId).parentElement.appendChild(correctIndicator);
+            }
+
+            inputs.forEach(input => input.disabled = true);
+            
+            score += scoreNivel4;
+            feedbackEl.textContent = `Corrigido! Acertaste ${scoreNivel4} de 5. Pontuação total: ${score}`;
+            feedbackEl.className = 'mt-4 font-semibold text-center text-green-700';
+            document.getElementById('btn-check-nivel-4').disabled = true; // Usa btn-check-nivel-4
+            document.getElementById('btn-next-nivel-5').disabled = false; // Usa btn-next-nivel-5
+        }
+
+        // --- Funções de Correção com IA ---
+        
+        /**
+         * Verifica uma resposta de pergunta aberta usando a API do Gemini.
+         * @param {string} qId - O ID da pergunta (ex: 'q4-1').
+         * @param {string} questionText - O texto da pergunta.
+         */
+        async function checkWithAI(qId, questionText) {
+            const answerInput = document.getElementById(qId);
+            const studentAnswer = answerInput.value.trim();
+            const feedbackEl = document.getElementById(`feedback-${qId}`);
+            
+            // CORREÇÃO: O ID do botão não tem o 'q' (ex: 'btn-ai-4-1' e não 'btn-ai-q4-1')
+            // O qId (ex: 'q5-1') é o ID do <textarea>, não do botão.
+            // O ID do botão é (ex: 'btn-ai-5-1'). Usamos qId.substring(1) para remover o 'q'.
+            const buttonId = `btn-ai-${qId.substring(1)}`; 
+            const buttonEl = document.getElementById(buttonId);
+            
+            if (studentAnswer === "") {
+                feedbackEl.textContent = 'Por favor, escreve uma resposta antes de verificar.';
+                feedbackEl.className = 'ai-feedback incorrect';
+                feedbackEl.style.display = 'block';
+                return;
+            }
+
+            // Mostrar feedback de carregamento
+            feedbackEl.textContent = 'A IA está a analisar a tua resposta...';
+            feedbackEl.className = 'ai-feedback loading';
+            feedbackEl.style.display = 'block';
+            buttonEl.disabled = true;
+            answerInput.disabled = true;
+
+            // ---- Chamada à API ----
+            const apiKey = "AIzaSyDQfEa3hBulQZw8pZ6dquH6oUCbqhoO3G0"; // Deixar vazio, será preenchido pelo ambiente
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+
+            // Instrução de sistema para a IA se comportar como um professor e devolver JSON
+            // ATUALIZADO: Removida a menção aos números de linha
+            const systemPrompt = `És um professor de Português do 6º ano em Portugal. A tua tarefa é avaliar a resposta de um aluno a uma pergunta de interpretação de texto, com base num excerto de "Ali Babá".
+O aluno NÃO tem números de linha.
+Deves ser rigoroso e verificar se a resposta do aluno é:
+1.  Focada na pergunta.
+2.  Justificada com base no TEXTO FORNECIDO.
+3.  Correta na sua interpretação.
+
+Responde APENAS com um objeto JSON no seguinte formato:
+{
+  "isCorrect": boolean,
+  "feedback": "O teu feedback curto e encorajador para o aluno, explicando porquê."
+}
+
+Se a resposta for vaga, parcialmente correta ou não justificada pelo texto, considera "isCorrect": false e explica o que faltou.
+Se a pergunta for de opinião (Nível 7), avalia a lógica e a justificação, não se a opinião é "certa" ou "errada". Uma opinião bem justificada é "isCorrect": true.`;
+
+            // O prompt do utilizador com o contexto
+            // ATUALIZADO: O contexto enviado para a IA agora não tem números de linha
+            const userQuery = `
+TEXTO DE CONTEXTO:
+"${textoAliBaba}"
+
+PERGUNTA:
+"${questionText}"
+
+RESPOSTA DO ALUNO:
+"${studentAnswer}"
+
+Por favor, avalia esta resposta e retorna o objeto JSON como instruído.`;
+
+            const payload = {
+                contents: [{
+                    parts: [{ text: userQuery }]
+                }],
+                systemInstruction: {
+                    parts: [{ text: systemPrompt }]
+                },
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "OBJECT",
+                        properties: {
+                            "isCorrect": { "type": "BOOLEAN" },
+                            "feedback": { "type": "STRING" }
+                        },
+                        required: ["isCorrect", "feedback"]
+                    }
+                }
+            };
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API error: ${response.statusText}`);
+                }
+
+                const result = await response.json();
+                
+                const aiResponseText = result.candidates?.[0]?.content?.parts?.[0]?.text;
+                if (!aiResponseText) {
+                    throw new Error("Resposta da IA vazia ou mal formatada.");
+                }
+
+                const aiFeedback = JSON.parse(aiResponseText);
+                
+                // Processar a resposta da IA
+                handleAIResponse(aiFeedback, feedbackEl, buttonEl);
+                
+            } catch (error) {
+                console.error("Erro ao chamar a IA:", error);
+                feedbackEl.textContent = 'Ocorreu um erro ao verificar a resposta. Tenta novamente mais tarde.';
+                feedbackEl.className = 'ai-feedback incorrect';
+                buttonEl.disabled = false; // Permitir tentar novamente
+                answerInput.disabled = false;
+            }
+        }
+        
+        /**
+         * Processa o feedback da IA e atualiza a pontuação.
+         * @param {object} aiFeedback - O objeto JSON {isCorrect, feedback}.
+         * @param {HTMLElement} feedbackEl - O elemento para mostrar o feedback.
+         * @param {HTMLElement} buttonEl - O botão que foi clicado.
+         */
+        function handleAIResponse(aiFeedback, feedbackEl, buttonEl) {
+            feedbackEl.textContent = aiFeedback.feedback;
+            
+            if (aiFeedback.isCorrect) {
+                feedbackEl.className = 'ai-feedback correct';
+                score += 1; // Adiciona 1 ponto por resposta correta da IA
+                document.getElementById('final-score').textContent = score; // Atualiza a pontuação visível (caso já esteja nos resultados)
+            } else {
+                feedbackEl.className = 'ai-feedback incorrect';
+            }
+            
+            // Botão permanentemente desativado após uma verificação bem-sucedida
+            buttonEl.disabled = true;
+            buttonEl.textContent = aiFeedback.isCorrect ? 'Correto ✓' : 'Verificado ✗';
+        }
+
+
+        // --- Função de Geração de Certificado ---
+        
+        function generateCertificate() {
+            // Assegurar que a biblioteca jsPDF foi carregada
+            if (typeof window.jspdf === 'undefined') {
+                alert("Erro: A biblioteca PDF não conseguiu ser carregada. Por favor, atualize a página e tente novamente.");
+                return;
+            }
+            
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            const today = new Date();
+            const dateStr = today.toLocaleDateString('pt-PT');
+
+            // Design do Certificado
+            doc.setFontSize(26);
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(66, 74, 90); // Cor escura
+            doc.text("Certificado de Conclusão", 105, 30, { align: "center" });
+            
+            doc.setFontSize(14);
+            doc.setFont("helvetica", "normal");
+            doc.setTextColor(100, 100, 100); // Cor cinza
+            doc.text("Este certificado é concedido a:", 105, 50, { align: "center" });
+
+            doc.setFontSize(22);
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(4, 120, 87); // Cor verde
+            doc.text(studentName, 105, 65, { align: "center" });
+
+            doc.setFontSize(14);
+            doc.setFont("helvetica", "normal");
+            doc.setTextColor(100, 100, 100);
+            doc.text("pela conclusão com sucesso do exercício de interpretação de texto", 105, 80, { align: "center" });
+            
+            doc.setFontSize(16);
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(66, 74, 90);
+            doc.text("Ali Babá: A Fórmula Mágica", 105, 90, { align: "center" });
+
+            doc.setFontSize(18);
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(66, 74, 90);
+            doc.text("Pontuação Obtida:", 105, 115, { align: "center" });
+            
+            doc.setFontSize(36);
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(29, 78, 216); // Cor azul
+            doc.text(`${score} / ${totalMaxScore}`, 105, 135, { align: "center" });
+
+            doc.setFontSize(12);
+            doc.setFont("helvetica", "italic");
+            doc.setTextColor(150, 150, 150);
+            doc.text(`Concluído em: ${dateStr}`, 105, 160, { align: "center" });
+
+            // Salvar o PDF
+            doc.save(`Certificado_${studentName.replace(/ /g, '_')}_AliBaba.pdf`);
+        }
+
+        // --- Funções Finais (Certificado) ---
+        
+        // ATUALIZADO: para calcular a pontuação final e definir a foto
+        function showFinalSection() {
+            // Calcular pontuação final
+            score = 0; // Resetar para recalcular
+            
+            // Nível 1
+            if (answerKeys.nivel1['q1-1'] === document.getElementById('q1-1').value) score++;
+            if (answerKeys.nivel1['q1-2'] === document.getElementById('q1-2').value) score++;
+            if (answerKeys.nivel1['q1-3'] === document.getElementById('q1-3').value) score++;
+            if (answerKeys.nivel1['q1-4'] === document.getElementById('q1-4').value) score++;
+            if (answerKeys.nivel1['q1-5'] === document.getElementById('q1-5').value) score++;
+            
+            // Nível 2
+            const answersNivel2 = answerKeys.nivel2;
+            for (let i = 1; i <= 5; i++) {
+                const qId = `q2-${i}`;
+                const input = document.getElementById(qId);
+                if (input.value.trim().toLowerCase().includes(answersNivel2[qId])) {
+                    score++;
+                }
+            }
+            
+            // Nível 3
+            const answersNivel3 = answerKeys.nivel3;
+            for (let i = 1; i <= 5; i++) {
+                const qId = `q3-${i}`;
+                const selected = document.querySelector(`input[name="${qId}"]:checked`);
+                if (selected && selected.value === answersNivel3[qId]) {
+                    score++;
+                }
+            }
+
+            // Nível 4
+            const answersNivel4 = answerKeys.nivel4;
+            let correctNivel4 = 0;
+            for (let i = 1; i <= 5; i++) {
+                const qId = `q4-${i}`;
+                const input = document.getElementById(qId);
+                if (input.value === answersNivel4[qId]) {
+                    correctNivel4++;
+                }
+            }
+            if (correctNivel4 === 5) score += 5; // Só ganha os 5 pontos se acertar todos
+
+            // Níveis 5, 6, 7 (IA)
+            Object.values(aiScores).forEach(aiScore => {
+                score += aiScore;
+            });
+            
+            const totalQuestions = 35; // 5*7
+            const finalScoreText = `${score}/${totalQuestions}`;
+
+            // Preencher o certificado
+            document.getElementById('cert-name').textContent = document.getElementById('student-name').value.trim() || "[Nome do Aluno]";
+            document.getElementById('cert-score').textContent = finalScoreText;
+            document.getElementById('cert-date').textContent = new Date().toLocaleDateString('pt-PT');
+            
+            // ATUALIZAÇÃO: Definir a foto no certificado
+            document.getElementById('cert-photo').src = userPhotoDataUrl; // Usar a foto guardada
+
+            showSection('section-final');
+        }
+
+        // ADICIONADO: Função para fazer download do PDF usando html2canvas
+        async function downloadCertificate() {
+            const { jsPDF } = window.jspdf;
+            const certificateElement = document.getElementById('certificate-content');
+            
+            try {
+                // Usar html2canvas para capturar o elemento
+                const canvas = await html2canvas(certificateElement, {
+                    scale: 2, // Melhorar a resolução
+                    useCORS: true // Para a imagem de placeholder/upload
+                });
+                
+                const imgData = canvas.toDataURL('image/png');
+                
+                // Definir dimensões do PDF (A4 paisagem)
+                // Usar as dimensões do canvas para o PDF
+                const pdf = new jsPDF({
+                    orientation: canvas.width > canvas.height ? 'l' : 'p',
+                    unit: 'px',
+                    format: [canvas.width, canvas.height]
+                });
+                
+                // Adicionar a imagem ao PDF
+                pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+                
+                // Fazer o download
+                const studentName = document.getElementById('student-name').value.trim() || "aluno";
+                const fileName = `Certificado_${studentName.replace(/ /g, '_')}.pdf`;
+                pdf.save(fileName);
+            } catch (error) {
+                console.error("Erro ao gerar o PDF:", error);
+                alert("Ocorreu um erro ao gerar o certificado. Tente novamente.");
+            }
+        }
+
+    </script>
+</body>
+</html>
