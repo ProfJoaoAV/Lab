@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contagem para o Regresso ao Sushi</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@600;900&family=Plus+Jakarta+Sans:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Canvas Confetti CDN for celebration -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        sushi: {
+                            salmon: '#FF5E5B',
+                            salmonDark: '#E63946',
+                            nori: '#0D1B2A',
+                            noriCard: '#1B263B',
+                            rice: '#FAFAFA',
+                            wasabi: '#80B918',
+                            wasabiLight: '#AACC00',
+                            ginger: '#FFB5A7',
+                            gold: '#FFD166',
+                            wood: '#2B1E1A'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                        jp: ['"Noto Serif JP"', 'serif']
+                    },
+                    animation: {
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'float': 'float 6s ease-in-out infinite',
+                        'spin-slow': 'spin 20s linear infinite',
+                        'glow': 'glow 2s ease-in-out infinite alternate'
+                    },
+                    keyframes: {
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0px) rotate(0deg)' },
+                            '50%': { transform: 'translateY(-12px) rotate(3deg)' }
+                        },
+                        glow: {
+                            '0%': { boxShadow: '0 0 15px rgba(255, 94, 91, 0.4)' },
+                            '100%': { boxShadow: '0 0 35px rgba(255, 94, 91, 0.8)' }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #0B131F;
+            color: #FAFAFA;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            overflow-x: hidden;
+        }
+
+        /* Glassmorphism utility */
+        .glass-panel {
+            background: rgba(27, 38, 59, 0.65);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .glass-card {
+            background: rgba(13, 27, 42, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 94, 91, 0.15);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .glass-card:hover {
+            border-color: rgba(255, 94, 91, 0.5);
+            transform: translateY(-4px);
+            box-shadow: 0 12px 30px -10px rgba(255, 94, 91, 0.25);
+        }
+
+        /* Gradient text */
+        .gradient-text-salmon {
+            background: linear-gradient(135deg, #FFB5A7 0%, #FF5E5B 50%, #E63946 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .gradient-text-gold {
+            background: linear-gradient(135deg, #FFF 0%, #FFD166 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0B131F;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1B263B;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #FF5E5B;
+        }
+
+        /* Floating background elements */
+        .sushi-bg-pattern {
+            background-image: radial-gradient(rgba(255, 94, 91, 0.08) 1px, transparent 1px);
+            background-size: 32px 32px;
+        }
+
+        /* Neon ring glow */
+        .neon-glow {
+            filter: drop-shadow(0 0 12px rgba(255, 94, 91, 0.5));
+        }
+    </style>
+</head>
+<body class="min-h-screen relative sushi-bg-pattern flex flex-col justify-between selection:bg-sushi-salmon selection:text-white">
+
+    <canvas id="bgCanvas" class="fixed inset-0 pointer-events-none z-0 opacity-40"></canvas>
+
+    <div class="fixed -top-40 -left-40 w-96 h-96 bg-sushi-salmon/15 rounded-full blur-3xl pointer-events-none"></div>
+    <div class="fixed -bottom-40 -right-40 w-96 h-96 bg-sushi-wasabi/15 rounded-full blur-3xl pointer-events-none"></div>
+
+    <header class="relative z-10 w-full max-w-7xl mx-auto px-6 py-6 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+            <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-sushi-salmon to-sushi-salmonDark flex items-center justify-center shadow-lg shadow-sushi-salmon/30 animate-pulse-slow">
+                <span class="font-jp text-2xl text-white font-bold">鮨</span>
+            </div>
+            <div>
+                <h1 class="font-jp font-bold text-lg tracking-wider text-sushi-rice">寿司 <span class="text-xs tracking-normal font-sans text-sushi-ginger opacity-80 uppercase block">Sushi Return 2026</span></h1>
+            </div>
+        </div>
+
+        <div class="flex items-center space-x-3">
+            <!-- Audio Toggle Button -->
+            <button id="soundBtn" onclick="toggleSound()" class="p-3 rounded-xl glass-panel text-sushi-rice hover:text-sushi-salmon transition-colors flex items-center space-x-2 text-sm font-semibold group" title="Ativar Som Ambiente Zen">
+                <i id="soundIcon" class="fa-solid fa-volume-xmark group-hover:scale-110 transition-transform"></i>
+                <span class="hidden sm:inline">Som Zen</span>
+            </button>
+            
+            <!-- Quick Celebration Preview Button -->
+            <button onclick="triggerCelebration(true)" class="px-4 py-2.5 rounded-xl bg-sushi-salmon/20 border border-sushi-salmon/40 hover:bg-sushi-salmon text-sushi-rice hover:text-white transition-all text-sm font-bold flex items-center space-x-2 shadow-lg hover:shadow-sushi-salmon/40">
+                <i class="fa-solid fa-wand-magic-sparkles"></i>
+                <span class="hidden sm:inline">Testar Celebração</span>
+            </button>
+        </div>
+    </header>
+
+    <main class="relative z-10 flex-grow flex flex-col items-center justify-center px-4 py-8 max-w-5xl mx-auto w-full text-center">
+        
+        <!-- Header Tagline -->
+        <div class="inline-flex items-center space-x-2 px-4 py-2 rounded-full glass-panel border border-sushi-salmon/30 mb-6 animate-bounce">
+            <span class="w-2 h-2 rounded-full bg-sushi-wasabi animate-ping"></span>
+            <span class="text-xs uppercase tracking-widest font-bold text-sushi-ginger">Compromisso Irrevogável</span>
+        </div>
+
+        <!-- Main Title -->
+        <h2 class="text-3xl sm:text-5xl md:text-6xl font-extrabold tracking-tight mb-4 leading-tight">
+            Contagem para o <br class="hidden sm:inline">
+            <span class="gradient-text-salmon font-jp drop-shadow-md">regresso ao sushi</span>
+        </h2>
+        
+        <p class="text-sushi-rice/70 text-base sm:text-lg max-w-2xl mx-auto mb-10">
+            A contagem decrescente oficial para a grande refeição. <br class="hidden sm:inline">
+            <span class="text-sushi-gold font-semibold">1 de Setembro de 2026 às 12:00</span>
+        </p>
+
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 w-full max-w-3xl mb-12">
+            <!-- Days -->
+            <div class="glass-card rounded-2xl p-4 sm:p-6 flex flex-col items-center justify-center relative overflow-hidden group">
+                <div class="absolute -right-4 -bottom-4 opacity-10 text-sushi-salmon font-jp text-6xl font-black select-none pointer-events-none">日</div>
+                <span id="count-days" class="text-4xl sm:text-6xl font-extrabold font-sans gradient-text-gold tracking-tight">00</span>
+                <span class="text-xs sm:text-sm font-bold tracking-widest uppercase text-sushi-ginger/80 mt-2">Dias</span>
+            </div>
+
+            <!-- Hours -->
+            <div class="glass-card rounded-2xl p-4 sm:p-6 flex flex-col items-center justify-center relative overflow-hidden group">
+                <div class="absolute -right-4 -bottom-4 opacity-10 text-sushi-salmon font-jp text-6xl font-black select-none pointer-events-none">時</div>
+                <span id="count-hours" class="text-4xl sm:text-6xl font-extrabold font-sans gradient-text-salmon tracking-tight">00</span>
+                <span class="text-xs sm:text-sm font-bold tracking-widest uppercase text-sushi-ginger/80 mt-2">Horas</span>
+            </div>
+
+            <!-- Minutes -->
+            <div class="glass-card rounded-2xl p-4 sm:p-6 flex flex-col items-center justify-center relative overflow-hidden group">
+                <div class="absolute -right-4 -bottom-4 opacity-10 text-sushi-salmon font-jp text-6xl font-black select-none pointer-events-none">分</div>
+                <span id="count-minutes" class="text-4xl sm:text-6xl font-extrabold font-sans text-sushi-rice tracking-tight">00</span>
+                <span class="text-xs sm:text-sm font-bold tracking-widest uppercase text-sushi-ginger/80 mt-2">Minutos</span>
+            </div>
+
+            <!-- Seconds -->
+            <div class="glass-card rounded-2xl p-4 sm:p-6 flex flex-col items-center justify-center relative overflow-hidden group border-sushi-salmon/40">
+                <div class="absolute -right-4 -bottom-4 opacity-10 text-sushi-salmon font-jp text-6xl font-black select-none pointer-events-none">秒</div>
+                <span id="count-seconds" class="text-4xl sm:text-6xl font-extrabold font-sans text-sushi-salmon tracking-tight animate-pulse">00</span>
+                <span class="text-xs sm:text-sm font-bold tracking-widest uppercase text-sushi-ginger/80 mt-2">Segundos</span>
+            </div>
+        </div>
+
+        <!-- Progress Indicator -->
+        <div class="w-full max-w-xl glass-panel rounded-2xl p-4 mb-14 border border-white/5 shadow-xl">
+            <div class="flex justify-between items-center text-xs font-semibold text-sushi-rice/70 mb-2">
+                <span><i class="fa-solid fa-hourglass-half text-sushi-salmon mr-1"></i> Progresso da Espera</span>
+                <span id="progress-percent" class="text-sushi-gold font-bold">0%</span>
+            </div>
+            <div class="w-full bg-sushi-nori rounded-full h-3 overflow-hidden p-0.5 border border-white/10">
+                <div id="progress-bar" class="bg-gradient-to-r from-sushi-salmon via-sushi-ginger to-sushi-wasabi h-full rounded-full transition-all duration-1000 w-0"></div>
+            </div>
+        </div>
+
+        <section class="w-full max-w-4xl text-left mb-16">
+            <div class="flex items-center space-x-3 mb-6">
+                <i class="fa-solid fa-utensils text-sushi-salmon text-2xl"></i>
+                <h3 class="text-2xl font-bold font-jp text-sushi-rice">Planeia o teu Combo de Regresso</h3>
+            </div>
+            <p class="text-sushi-rice/70 text-sm mb-6">Escolhe as tuas peças preferidas para calcular o teu prato de sonho quando o relógio bater as 12:00!</p>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-6" id="sushiMenuGrid">
+                <!-- Items populated via JS -->
+            </div>
+
+            <!-- Tray Summary Card -->
+            <div class="glass-panel rounded-2xl p-6 border border-sushi-salmon/30 flex flex-col md:flex-row justify-between items-center gap-4">
+                <div class="flex items-center space-x-4">
+                    <div class="text-4xl text-sushi-salmon"><i class="fa-solid fa-box-archive"></i></div>
+                    <div>
+                        <div class="text-xs uppercase tracking-wider text-sushi-ginger font-bold">Bento do Regresso</div>
+                        <div class="text-lg font-bold text-sushi-rice" id="plateSummary">0 peças selecionadas</div>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-3 w-full md:w-auto">
+                    <button onclick="resetPlate()" class="px-4 py-2 rounded-xl text-xs font-bold text-sushi-rice/60 hover:text-sushi-salmon border border-white/10 hover:border-sushi-salmon/30 transition-all w-1/2 md:w-auto">
+                        Limpar
+                    </button>
+                    <button onclick="shareWishlist()" class="px-5 py-2.5 rounded-xl bg-sushi-salmon hover:bg-sushi-salmonDark text-white text-sm font-bold transition-all shadow-lg shadow-sushi-salmon/30 flex items-center justify-center space-x-2 w-1/2 md:w-auto">
+                        <i class="fa-solid fa-share-nodes"></i>
+                        <span>Copiar Pedido</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <section class="w-full max-w-4xl glass-panel rounded-3xl p-6 sm:p-8 border border-white/10 mb-16 relative overflow-hidden">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                <div class="text-left">
+                    <div class="inline-block px-3 py-1 rounded-full bg-sushi-wasabi/20 border border-sushi-wasabi/40 text-sushi-wasabiLight text-xs font-bold mb-3">
+                        <i class="fa-solid fa-dice mr-1"></i> Decisor de Fome
+                    </div>
+                    <h3 class="text-2xl sm:text-3xl font-extrabold font-jp text-sushi-rice mb-3">Indeciso sobre o que comer primeiro?</h3>
+                    <p class="text-sushi-rice/70 text-sm mb-6">
+                        Gira a Roda do Sushi e deixa o destino escolher a tua primeira peça no dia 1 de Setembro às 12:00!
+                    </p>
+                    <button onclick="spinWheel()" id="spinBtn" class="px-6 py-3 rounded-2xl bg-gradient-to-r from-sushi-wasabi to-sushi-wasabiLight hover:brightness-110 text-sushi-nori font-extrabold text-sm transition-all shadow-lg shadow-sushi-wasabi/20 flex items-center space-x-2">
+                        <i class="fa-solid fa-arrows-rotate"></i>
+                        <span>Girar Roda do Sushi</span>
+                    </button>
+                </div>
+
+                <div class="flex flex-col items-center justify-center relative">
+                    <!-- Pointer -->
+                    <div class="w-0 h-0 border-l-[12px] border-l-transparent border-r-[12px] border-r-transparent border-t-[20px] border-t-sushi-salmon z-20 -mb-3 drop-shadow-md"></div>
+                    <!-- Canvas Wheel -->
+                    <div class="relative w-64 h-64 sm:w-72 sm:h-72">
+                        <canvas id="wheelCanvas" width="300" height="300" class="w-full h-full rounded-full border-4 border-sushi-noriCard shadow-2xl transition-transform duration-[4000ms] ease-[cubic-bezier(0.15,0.99,0.18,0.99)]"></canvas>
+                    </div>
+                    <!-- Result Modal Popover -->
+                    <div id="wheelResult" class="mt-4 text-center font-bold text-sushi-gold min-h-[1.5rem] text-lg font-jp"></div>
+                </div>
+            </div>
+        </section>
+
+        <section class="w-full max-w-4xl text-left mb-12">
+            <div class="glass-card rounded-2xl p-6 sm:p-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+                <div class="flex items-start space-x-4">
+                    <div class="w-14 h-14 rounded-2xl bg-sushi-salmon/20 flex items-center justify-center text-sushi-salmon text-2xl flex-shrink-0">
+                        <i class="fa-solid fa-lightbulb"></i>
+                    </div>
+                    <div>
+                        <h4 class="text-xs uppercase tracking-widest text-sushi-ginger font-bold mb-1">Regra de Etiqueta #<span id="factNum">1</span></h4>
+                        <p id="factText" class="text-sushi-rice text-base sm:text-lg font-medium italic">"Mergulha sempre o peixe na molheira de soja, e nunca o arroz, para não desmanchar a peça."</p>
+                    </div>
+                </div>
+                <button onclick="nextFact()" class="px-4 py-2.5 rounded-xl glass-panel hover:bg-white/10 text-sushi-rice text-xs font-bold transition-all flex items-center space-x-2 flex-shrink-0">
+                    <span>Próxima Dica</span>
+                    <i class="fa-solid fa-chevron-right"></i>
+                </button>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="relative z-10 w-full max-w-7xl mx-auto px-6 py-8 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between text-xs text-sushi-rice/50 gap-4">
+        <div class="flex items-center space-x-2">
+            <span class="w-2 h-2 rounded-full bg-sushi-wasabi"></span>
+            <span>Contagem Regresso Sushi &copy; 2026 • 1 de Setembro às 12:00</span>
+        </div>
+        <div class="flex items-center space-x-6">
+            <button onclick="copyCountdownLink()" class="hover:text-sushi-salmon transition-colors flex items-center space-x-1">
+                <i class="fa-solid fa-link"></i>
+                <span>Partilhar Link</span>
+            </button>
+            <span class="text-sushi-rice/20">•</span>
+            <span class="text-sushi-ginger/70 font-jp">いただきます (Itadakimasu)</span>
+        </div>
+    </footer>
+
+    <script>
+        /* ----------------------------------------------------
+         * Target Date Setup: 1st September 2026 at 12:00:00
+         * ---------------------------------------------------- */
+        const TARGET_DATE = new Date(2026, 8, 1, 12, 0, 0); // Month is 0-indexed: 8 = September
+        
+        // References to DOM Elements
+        const elDays = document.getElementById('count-days');
+        const elHours = document.getElementById('count-hours');
+        const elMinutes = document.getElementById('count-minutes');
+        const elSeconds = document.getElementById('count-seconds');
+        const elProgressBar = document.getElementById('progress-bar');
+        const elProgressPercent = document.getElementById('progress-percent');
+
+        let soundActive = false;
+        let audioCtx = null;
+        let zenOscillator = null;
+
+        function updateCountdown() {
+            const now = new Date();
+            const diff = TARGET_DATE - now;
+
+            if (diff <= 0) {
+                // Target reached!
+                elDays.innerText = "00";
+                elHours.innerText = "00";
+                elMinutes.innerText = "00";
+                elSeconds.innerText = "00";
+                elProgressBar.style.width = "100%";
+                elProgressPercent.innerText = "100%";
+                triggerCelebration();
+                return;
+            }
+
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+            elDays.innerText = String(days).padStart(2, '0');
+            elHours.innerText = String(hours).padStart(2, '0');
+            elMinutes.innerText = String(minutes).padStart(2, '0');
+            elSeconds.innerText = String(seconds).padStart(2,
